@@ -142,6 +142,39 @@
             font-size: 1rem;
         }
 
+        /* Estilos para mensajes flash */
+        .alert {
+            padding: 0.9rem 1rem;
+            border-radius: 10px;
+            margin: 0.5rem 0;
+            font-weight: 600;
+            border: 1px solid #eee;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error, .alert-danger {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+
         /* Formulario */
         .register-form {
             display: flex;
@@ -485,6 +518,19 @@
             <p class="register-subtitle">Crea tu cuenta y comienza tu viaje</p>
         </div>
 
+        <!-- Bloque de mensajes flash -->
+        <div style="max-width:500px;margin:0 auto 1rem">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message|safe }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
         <form class="register-form" id="registerForm" method="POST" action="/registro">
 
             <div class="form-row">
@@ -604,6 +650,41 @@
                 </div>
             </div>
 
+            <!-- Campos solo para CONDUCTOR -->
+            <div id="driverFields" style="display:none; margin-top: 1rem;">
+                <div class="form-group">
+                    <label for="licencia">Licencia</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="licencia" name="licencia" class="form-input" placeholder="N° de licencia">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="placa">Placa</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-car-side"></i>
+                        <input type="text" id="placa" name="placa" class="form-input" placeholder="ABC-123">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="modelo">Modelo</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-car"></i>
+                        <input type="text" id="modelo" name="modelo" class="form-input" placeholder="Toyota Corolla">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="color">Color</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-palette"></i>
+                        <input type="text" id="color" name="color" class="form-input" placeholder="Negro">
+                    </div>
+                </div>
+            </div>
+
             <div class="terms-group">
                 <input type="checkbox" id="terms" name="terms" required>
                 <label for="terms">
@@ -650,6 +731,30 @@
             const strengthIndicator = document.getElementById('passwordStrength');
             const strengthFill = document.getElementById('strengthFill');
             const strengthText = document.getElementById('strengthText');
+
+            // Toggle de campos de conductor
+            const driverRadio = document.getElementById('driver');
+            const passengerRadio = document.getElementById('passenger');
+            const driverFields = document.getElementById('driverFields');
+
+            function toggleDriverFields(){
+                if (driverRadio && driverRadio.checked) {
+                    driverFields.style.display = 'block';
+                    ['licencia','placa','modelo','color'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.setAttribute('required','required');
+                    });
+                } else {
+                    driverFields.style.display = 'none';
+                    ['licencia','placa','modelo','color'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.removeAttribute('required');
+                    });
+                }
+            }
+
+            [driverRadio, passengerRadio].forEach(r => r && r.addEventListener('change', toggleDriverFields));
+            toggleDriverFields(); // estado inicial
 
             // Animación en los inputs
             document.querySelectorAll('.form-input').forEach(input => {
