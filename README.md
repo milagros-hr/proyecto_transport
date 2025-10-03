@@ -1,7 +1,3 @@
-¡hecho! Aquí tienes un **README.md** listo para pegar en tu proyecto. Explica la estructura, cómo correrlo, el flujo de “Buscar viaje”, endpoints, y cómo depurar los típicos errores 👇
-
----
-
 # TransPort (Flask + Leaflet)
 
 Mini app de taxi con registro/login, listado de usuarios y búsqueda de viajes sobre un mapa.
