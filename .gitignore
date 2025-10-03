@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+.venv/
+env/
+venv/
+
+# Flask
+instance/
+*.db
+
+# Editor
+.vscode/
+.idea/
+
+# Datos locales (si no quieres versionar)
+data/viajes.json
+data/*.bak.json
