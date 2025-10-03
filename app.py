@@ -1,5 +1,31 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from datetime import datetime
+import re
+from flask import jsonify
+import servicios.gestor_rutas as gr
+
+# --- NODOS DEL GRAFO (read-only) ---
+from flask import jsonify
+import servicios.gestor_rutas as gr  # importa tu gestor real
+
+# Fallback con los mismos nodos que dibujabas antes (si tu grafo aún no trae coords)
+FALLBACK_NODES = [
+    {"id":"centro_lima","nombre":"Centro de Lima","lat":-12.0464,"lng":-77.0428},
+    {"id":"miraflores","nombre":"Miraflores","lat":-12.1203,"lng":-77.0282},
+    {"id":"san_isidro","nombre":"San Isidro","lat":-12.1040,"lng":-77.0348},
+    {"id":"barranco","nombre":"Barranco","lat":-12.1406,"lng":-77.0214},
+    {"id":"surco","nombre":"Surco","lat":-12.1339,"lng":-76.9931},
+    {"id":"la_molina","nombre":"La Molina","lat":-12.0794,"lng":-76.9397},
+    {"id":"callao","nombre":"Callao","lat":-12.0566,"lng":-77.1181},
+    {"id":"san_miguel","nombre":"San Miguel","lat":-12.0773,"lng":-77.0907},
+    {"id":"pueblo_libre","nombre":"Pueblo Libre","lat":-12.0740,"lng":-77.0615},
+    {"id":"jesus_maria","nombre":"Jesús María","lat":-12.0719,"lng":-77.0431},
+    {"id":"lince","nombre":"Lince","lat":-12.0876,"lng":-77.0364},
+    {"id":"san_borja","nombre":"San Borja","lat":-12.1086,"lng":-77.0023},
+    {"id":"surquillo","nombre":"Surquillo","lat":-12.1142,"lng":-77.0177},
+    {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428},
+]
+
 
 # === Importa TODO desde servicios y usa solo esto ===
 from servicios.usuarios_repo import (
@@ -39,19 +65,23 @@ def registro():
     if request.method == "GET":
         return render_template("registro.html")
 
-    # POST
+    # --- Campos base ---
     nombre = request.form.get("nombre", "").strip()
-    correo = request.form.get("correo", "").strip()
-    telefono = request.form.get("telefono", "").strip()
+    apellido = request.form.get("apellido", "").strip()
+    if apellido:
+        nombre = f"{nombre} {apellido}".strip()
 
+    correo = (request.form.get("correo", "") or "").strip().lower()
+    telefono = request.form.get("telefono", "").strip()
     tipo = (request.form.get("tipo") or request.form.get("tipo_usuario") or "").strip()
 
+    # --- Campos de conductor (si aplica) ---
     licencia = request.form.get("licencia", "").strip() if tipo == "conductor" else None
     placa    = request.form.get("placa", "").strip() if tipo == "conductor" else None
     modelo   = request.form.get("modelo", "").strip() if tipo == "conductor" else None
     color    = request.form.get("color", "").strip() if tipo == "conductor" else None
 
-    # Validaciones
+    # --- Validaciones de presencia ---
     faltantes = []
     if not nombre:   faltantes.append("nombre")
     if not correo:   faltantes.append("correo")
@@ -69,25 +99,44 @@ def registro():
         flash(f"❌ Faltan los siguientes campos: {', '.join(faltantes)}", "error")
         return render_template("registro.html")
 
+    # --- Normaliza + valida campos de conductor ---
+    if tipo == "conductor":
+        licencia = licencia.upper()
+        placa = placa.upper()
+        modelo = modelo.title()
+        color = color.title()
+
+        # Formato de placa (ajústalo si usas otro formato)
+        if not re.fullmatch(r"[A-Z]{3}-\d{3}", placa):
+            flash("❌ Formato de placa inválido. Usa ABC-123.", "error")
+            return render_template("registro.html")
+
+        # Placa duplicada
+        if any(c.get("placa", "").upper() == placa for c in get_usuarios("conductor")):
+            flash("❌ Esa placa ya está registrada.", "error")
+            return render_template("registro.html")
+
+    # --- Correo duplicado (por tipo) ---
     if usuario_existe(correo, tipo):
         flash(f"❌ Ya existe un {tipo} registrado con ese correo electrónico", "error")
         return render_template("registro.html")
 
+    # --- Crear y guardar ---
     usuarios = get_usuarios(tipo)
     nuevo_usuario = {
-        'id': generar_id(usuarios),
-        'nombre': nombre,
-        'correo': correo,
-        'telefono': telefono,
-        'tipo': tipo,
-        'fecha_registro': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "id": generar_id(usuarios),
+        "nombre": nombre,
+        "correo": correo,
+        "telefono": telefono,
+        "tipo": tipo,
+        "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     if tipo == "conductor":
         nuevo_usuario.update({
-            'licencia': licencia,
-            'placa': placa,
-            'modelo': modelo,
-            'color': color
+            "licencia": licencia,
+            "placa": placa,
+            "modelo": modelo,
+            "color": color,
         })
 
     usuarios.append(nuevo_usuario)
@@ -97,6 +146,7 @@ def registro():
 
     flash("❌ Error al guardar los datos. Inténtalo de nuevo.", "error")
     return render_template("registro.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -248,6 +298,39 @@ def api_buscar_viajes():
             "asientos": 4,
         })
     return jsonify({"distancia": distancia, "ruta": ruta, "resultados": resultados})
+
+@app.get("/api/grafo/nodos")
+def api_grafo_nodos():
+    try:
+        nodos = []
+
+        # Opción A: si tu gestor expone un dict con coords
+        if hasattr(gr, "NODOS_COORDS"):
+            for nid, n in gr.NODOS_COORDS.items():
+                nodos.append({
+                    "id": nid,
+                    "nombre": n.get("nombre", nid),
+                    "lat": n.get("lat"), "lng": n.get("lng")
+                })
+
+        # Opción B: si tu gestor tiene .grafo tipo networkx con atributos
+        elif hasattr(gr, "grafo") and hasattr(gr.grafo, "nodes"):
+            for nid, data in gr.grafo.nodes(data=True):
+                nodos.append({
+                    "id": str(nid),
+                    "nombre": data.get("nombre", str(nid)),
+                    "lat": data.get("lat"), "lng": data.get("lng")
+                })
+
+        # Fallback si aún no tienes coords en el grafo
+        if not nodos:
+            nodos = FALLBACK_NODES
+
+        return jsonify(nodos), 200
+    except Exception as e:
+        print("Error /api/grafo/nodos:", e)
+        return jsonify([]), 500
+
 
 @app.post("/api/solicitar")
 @requiere_login
