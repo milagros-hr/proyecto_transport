@@ -53,12 +53,22 @@ def buscar_usuario_por_correo(correo: str, tipo: str) -> Optional[Dict[str, Any]
             return u
     return None
 
-def buscar_usuario_por_id(user_id: int) -> Optional[Dict[str, Any]]:
+def buscar_usuario_por_id(user_id: int, tipo: str) -> Optional[Dict[str, Any]]:
+    """Busca por id dentro del tipo indicado (pasajero|conductor)."""
+    for u in get_usuarios(tipo):
+        if u.get("id") == user_id:
+            return u
+    return None
+
+# (Opcional, si la necesitas para reportes, NO para auth)
+def buscar_usuario_por_id_en_cualquier_tipo(user_id: int) -> Optional[Dict[str, Any]]:
     for tipo in ("pasajero", "conductor"):
         for u in get_usuarios(tipo):
             if u.get("id") == user_id:
+                # Puedes devolver {'tipo': tipo, **u} si te sirve
                 return u
     return None
+
 
 def usuario_existe(correo: str, tipo: str) -> bool:
     return buscar_usuario_por_correo(correo, tipo) is not None

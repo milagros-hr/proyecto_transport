@@ -1,6 +1,10 @@
 // ========================================
 // TRANSPORT - BUSCAR VIAJE (Frontend)
+// Coloca este archivo en: static/js/buscar_viaje.js
 // ========================================
+
+/** Línea punteada de vista previa (si no hay ruta real) */
+let previewLine = null;
 
 const API = {
   nodos: '/api/grafo/nodos',
@@ -26,7 +30,7 @@ const FALLBACK_NODES = [
   {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428}
 ];
 
-// Variables globales
+// === Estado global ===
 let map;
 let nodes = [];
 let nodesByName = new Map();
@@ -38,11 +42,8 @@ let mode = 'origen'; // 'origen' | 'destino'
 let originMarker = null;
 let destinationMarker = null;
 
-// Para mantener la selección real de cada campo
-// - Lo que ve el usuario: dirección (input.value + <small>)
-// - Lo que usa el backend: nombre del nodo (input.dataset.node)
 const state = {
-  origen: { lat: null, lng: null, nodeName: null },
+  origen:  { lat: null, lng: null, nodeName: null },
   destino: { lat: null, lng: null, nodeName: null },
 };
 
@@ -76,7 +77,7 @@ function initMap() {
     maxZoom: 18
   }).addTo(map);
 
-  // Click en el mapa = usar coords exactas (no el nombre del nodo)
+  // Click en el mapa = usar coords exactas
   map.on('click', async (e) => {
     const { lat, lng } = e.latlng;
     await setPointFromCoords(mode, lat, lng);
@@ -92,6 +93,32 @@ function getMarkerIcon(kind) {
     iconSize: [20, 20],
     className: `${kind}-marker`
   });
+}
+
+// Crea/actualiza el marcador y lo hace arrastrable
+function placeMarker(kind, lat, lng) {
+  const icon = getMarkerIcon(kind);
+  if (kind === 'origen') {
+    if (!originMarker) {
+      originMarker = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
+      originMarker.on('dragend', async (e) => {
+        const p = e.target.getLatLng();
+        await setPointFromCoords('origen', p.lat, p.lng);
+      });
+    } else {
+      originMarker.setLatLng([lat, lng]);
+    }
+  } else {
+    if (!destinationMarker) {
+      destinationMarker = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
+      destinationMarker.on('dragend', async (e) => {
+        const p = e.target.getLatLng();
+        await setPointFromCoords('destino', p.lat, p.lng);
+      });
+    } else {
+      destinationMarker.setLatLng([lat, lng]);
+    }
+  }
 }
 
 // ========================================
@@ -143,7 +170,7 @@ function drawNodes() {
 
     marker.bindTooltip(node.nombre, { permanent: false, direction: 'top', className: 'node-tooltip' });
 
-    // Click en un nodo -> usar las coords del nodo
+    // Click en un nodo -> usar coords del nodo
     marker.on('click', async () => {
       await setPointFromNode(mode, node);
     });
@@ -167,19 +194,19 @@ function setupAutocomplete() {
 
 // 1) Desde coords exactas (mapa / geolocalización / forward geocode)
 async function setPointFromCoords(kind, lat, lng) {
-  // 1. Poner marcador en la posición real
+  // 1. marcador
   placeMarker(kind, lat, lng);
 
-  // 2. Mostrar dirección humana debajo del input
+  // 2. dirección humana
   const addr = await reverseGeocode(lat, lng);
   const label = document.getElementById(kind + 'Address');
   if (label) label.textContent = addr || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-  // 3. El input muestra la dirección humana (NO el nombre del nodo)
+  // 3. input visible
   const input = document.getElementById(kind);
   input.value = addr || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-  // 4. Asociar internamente el nodo más cercano (para el backend)
+  // 4. asociar nodo más cercano (para backend)
   const nearest = snapToNearestNode(lat, lng);
   if (nearest) {
     input.dataset.node = nearest.nombre;
@@ -189,66 +216,44 @@ async function setPointFromCoords(kind, lat, lng) {
     state[kind] = { lat, lng, nodeName: null };
   }
 
-  // 5. Centrar mapa
+  // 5. centrar y validar
   map.setView([lat, lng], 14);
-
   checkFormValidity();
-  console.log(`✅ ${kind} establecido por coords → nodo: ${input.dataset.node || 'N/A'}`);
+
+  // 6. previsualizar ruta si ambos existen
+  await previewRealRouteIfBoth();
+
+  console.log(`✅ ${kind} por coords → nodo: ${input.dataset.node || 'N/A'}`);
 }
 
-// 2) Desde un nodo (click en marcador de nodo o elegiste nodo del datalist)
+// 2) Desde un nodo (click en nodo o datalist)
 async function setPointFromNode(kind, node) {
   if (!node || !node.lat || !node.lng) return;
 
-  // 1. Poner marcador en el nodo
-function placeMarker(kind, lat, lng) {
-  const icon = getMarkerIcon(kind);
-  let marker = (kind === 'origen') ? originMarker : destinationMarker;
+  // 1. marcador en el nodo
+  placeMarker(kind, node.lat, node.lng);
 
-  if (!marker) {
-    marker = L.marker([lat, lng], { icon, draggable: true }).addTo(map);
-    // Al soltar el marcador, recalcula dirección y nodo cercano
-    marker.on('dragend', async (e) => {
-      const p = e.target.getLatLng();
-      await setPointFromCoords(kind, p.lat, p.lng); // reusa tu lógica (NO recrea el marker)
-    });
-    if (kind === 'origen') originMarker = marker;
-    else destinationMarker = marker;
-  } else {
-    marker.setLatLng([lat, lng]);
-  }
-}
-
-
-  // 2. Dirección humana (reverse geocode del propio nodo)
+  // 2. dirección humana del nodo
   const addr = await reverseGeocode(node.lat, node.lng);
   const label = document.getElementById(kind + 'Address');
   if (label) label.textContent = addr || node.nombre;
 
-  // 3. El input muestra la dirección humana (más friendly)
+  // 3. input visible
   const input = document.getElementById(kind);
   input.value = addr || node.nombre;
 
-  // 4. Asociar internamente el nodo (para el backend)
+  // 4. asociar internamente
   input.dataset.node = node.nombre;
   state[kind] = { lat: node.lat, lng: node.lng, nodeName: node.nombre };
 
-  // 5. Centrar mapa
+  // 5. centrar y validar
   map.setView([node.lat, node.lng], 14);
-
   checkFormValidity();
-  console.log(`✅ ${kind} establecido por nodo → ${node.nombre}`);
-}
 
-function placeMarker(kind, lat, lng) {
-  const icon = getMarkerIcon(kind);
-  if (kind === 'origen') {
-    if (originMarker) map.removeLayer(originMarker);
-    originMarker = L.marker([lat, lng], { icon }).addTo(map);
-  } else {
-    if (destinationMarker) map.removeLayer(destinationMarker);
-    destinationMarker = L.marker([lat, lng], { icon }).addTo(map);
-  }
+  // 6. previsualizar ruta
+  await previewRealRouteIfBoth();
+
+  console.log(`✅ ${kind} por nodo → ${node.nombre}`);
 }
 
 // ========================================
@@ -321,8 +326,7 @@ function bindUI() {
   // Formulario de búsqueda
   document.getElementById('searchForm').addEventListener('submit', buscarViajes);
 
-  // Inputs: si el valor coincide con un nodo -> setPointFromNode
-  // de lo contrario -> intentar forward geocode
+  // Inputs: si coincide con un nodo -> setPointFromNode; si no -> forward geocode
   ['origen', 'destino'].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener('input', () => {
@@ -336,20 +340,17 @@ function bindUI() {
           return;
         }
 
-        // Si coincide exactamente con un nodo
         const node = nodesByName.get(text);
         if (node) {
           await setPointFromNode(id, node);
           return;
         }
 
-        // Intentar forward geocoding (p.ej. "Av. Arequipa 1234")
         if (text.length >= 3) {
           const pos = await forwardGeocode(text);
           if (pos) {
             await setPointFromCoords(id, pos.lat, pos.lng);
           } else {
-            // No se encontró: quitamos el dataset.node para no habilitar el botón
             delete el.dataset.node;
             showStatus('warning', 'No se pudo ubicar esa dirección. Prueba con otra referencia.');
             checkFormValidity();
@@ -379,13 +380,11 @@ function formatAddress(j) {
   if (!j || !j.address) return null;
   const a = j.address;
 
-  // Línea 1: calle + número (o nombre de lugar si existe)
   const line1 = [
     a.road || a.pedestrian || a.footway || a.path || a.cycleway || a.residential || a.highway || j.name
   ].filter(Boolean).join(' ');
   const house = a.house_number ? ` ${a.house_number}` : '';
 
-  // Línea 2: barrio/zona + ciudad + código postal
   const area = a.neighbourhood || a.suburb || a.village || a.town || a.city_district;
   const city = a.city || a.town || a.municipality || a.county;
   const line2 = [area, city, a.state, a.postcode].filter(Boolean).join(', ');
@@ -394,10 +393,9 @@ function formatAddress(j) {
   return full || j.display_name || null;
 }
 
-
 async function forwardGeocode(query) {
   try {
-    // viewbox: left,top,right,bottom (aprox Lima)
+    // viewbox aprox Lima: left,top,right,bottom
     const viewbox = '-77.20,-11.90,-76.80,-12.25';
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&addressdetails=1&accept-language=es&limit=1&countrycodes=pe&viewbox=${viewbox}&bounded=1`;
     const r = await fetch(url, { headers: { 'Accept-Language': 'es' } });
@@ -411,7 +409,6 @@ async function forwardGeocode(query) {
     return null;
   }
 }
-
 
 // ========================================
 // SNAP AL NODO MÁS CERCANO (HAVERSINE)
@@ -442,18 +439,49 @@ function haversine(lat1, lng1, lat2, lng2) {
 }
 
 // ========================================
+// UTILIDADES DE RUTA (OSRM FALLBACK)
+// ========================================
+
+function getLatLngFor(kind) {
+  const m = (kind === 'origen') ? originMarker : destinationMarker;
+  if (m) return m.getLatLng();
+  const s = state[kind];
+  if (s.lat && s.lng) return L.latLng(s.lat, s.lng);
+  return null;
+}
+
+async function drawRoadRouteWithOSRM(from, to) {
+  try {
+    // OSRM demo (solo para dev; en prod monta propio router)
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+    const r = await fetch(url);
+    const j = await r.json();
+    if (j.code !== 'Ok' || !j.routes || !j.routes.length) throw new Error('Sin ruta');
+
+    const geo = j.routes[0].geometry; // GeoJSON LineString
+    if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+    clearPreviewLine();
+
+    routeLayer = L.geoJSON(geo, { style: { color: '#ff9800', weight: 5, opacity: 0.85 } }).addTo(map);
+    const tmp = L.geoJSON(geo);
+    map.fitBounds(tmp.getBounds(), { padding: [50, 50] });
+  } catch (e) {
+    console.warn('OSRM fallback falló:', e);
+    // Si falla OSRM, al menos la línea punteada
+    updatePreviewLine();
+  }
+}
+
+// ========================================
 // BÚSQUEDA DE VIAJES
 // ========================================
 
 async function buscarViajes(e) {
   e.preventDefault();
 
-  const origenInput = document.getElementById('origen');
-  const destinoInput = document.getElementById('destino');
+  const origenNode = document.getElementById('origen').dataset.node || '';
+  const destinoNode = document.getElementById('destino').dataset.node || '';
   const pasajeros = document.getElementById('pasajeros').value;
-
-  const origenNode = origenInput.dataset.node || '';
-  const destinoNode = destinoInput.dataset.node || '';
 
   if (!origenNode || !destinoNode || !pasajeros) {
     showStatus('error', 'Completa origen y destino válidos (deben asociarse a un nodo).');
@@ -466,7 +494,6 @@ async function buscarViajes(e) {
 
   try {
     const url = new URL(API.buscar, window.location.origin);
-    // IMPORTANTE: mandamos los NOMBRES DE NODO (no las direcciones)
     url.searchParams.set('origen', origenNode);
     url.searchParams.set('destino', destinoNode);
     url.searchParams.set('pasajeros', pasajeros);
@@ -475,12 +502,14 @@ async function buscarViajes(e) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // Dibujar ruta si viene del backend
-    if (data.ruta && data.ruta.length > 0) {
-      drawRoute(data.ruta);
-    } else if (routeLayer) {
-      map.removeLayer(routeLayer);
-      routeLayer = null;
+    // Intentar dibujar ruta del backend (si trae nodos o coords)
+    drawRoute(data.ruta || []);
+
+    // Si no hubo ruta real, pintar con OSRM entre los marcadores
+    if (!routeLayer) {
+      const a = getLatLngFor('origen');
+      const b = getLatLngFor('destino');
+      if (a && b) await drawRoadRouteWithOSRM(a, b);
     }
 
     displayResults(data.resultados || [], data.distancia);
@@ -499,25 +528,27 @@ async function buscarViajes(e) {
 // ========================================
 
 function drawRoute(ruta) {
-  if (routeLayer) map.removeLayer(routeLayer);
+  // Si pintamos ruta real, quitamos la punteada de vista previa
+  clearPreviewLine();
+
+  if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
 
   let coords = [];
-
   if (Array.isArray(ruta) && ruta.length > 0) {
     if (typeof ruta[0] === 'string') {
-      // Ruta por nombres de nodo
+      // Ruta como nombres de nodo
       coords = ruta
         .map(nombre => nodesByName.get(nombre))
         .filter(n => n && n.lat && n.lng)
         .map(n => [n.lat, n.lng]);
     } else if (Array.isArray(ruta[0]) && ruta[0].length === 2) {
-      // Ruta por coordenadas [[lat,lng], ...]
+      // Ruta ya viene como [[lat,lng], ...]
       coords = ruta;
     }
   }
 
   if (coords.length < 2) {
-    console.warn('⚠️ No hay suficientes coordenadas para dibujar la ruta');
+    // No dibujamos nada; el caller hará fallback OSRM o punteada.
     return;
   }
 
@@ -530,6 +561,71 @@ function drawRoute(ruta) {
 
   map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
   console.log('🛣️ Ruta dibujada:', coords.length, 'puntos');
+}
+
+// ========================================
+// VISTA PREVIA (línea punteada) y prefetch de ruta real
+// ========================================
+
+function updatePreviewLine() {
+  if (routeLayer) return; // si ya hay ruta real, no mostrar punteada
+  if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
+
+  if (originMarker && destinationMarker) {
+    const a = originMarker.getLatLng();
+    const b = destinationMarker.getLatLng();
+    previewLine = L.polyline([a, b], {
+      color: '#333', weight: 3, opacity: 0.7, dashArray: '8 10'
+    }).addTo(map);
+    map.fitBounds(previewLine.getBounds(), { padding: [40, 40] });
+
+    const km = haversine(a.lat, a.lng, b.lat, b.lng).toFixed(1);
+    showStatus('success', `Vista previa: ${km} km en línea recta`);
+  }
+}
+
+function clearPreviewLine() {
+  if (previewLine) {
+    map.removeLayer(previewLine);
+    previewLine = null;
+  }
+}
+
+// Intenta obtener ruta real con tu endpoint; si no llega, usa OSRM o punteada
+async function previewRealRouteIfBoth() {
+  const a = getLatLngFor('origen');
+  const b = getLatLngFor('destino');
+
+  if (!a || !b) {
+    updatePreviewLine();
+    return;
+  }
+
+  // Si no hay ambos nodos asociados, dibuja directo con OSRM
+  if (!state.origen.nodeName || !state.destino.nodeName) {
+    await drawRoadRouteWithOSRM(a, b);
+    return;
+  }
+
+  // Intento “ligero” con tu backend (no cambia lógica)
+  try {
+    const url = new URL(API.buscar, window.location.origin);
+    url.searchParams.set('origen', state.origen.nodeName);
+    url.searchParams.set('destino', state.destino.nodeName);
+    url.searchParams.set('pasajeros', 1);
+    url.searchParams.set('preview', 1); // hint opcional
+
+    const res = await fetch(url, { credentials: 'same-origin' });
+    const data = res.ok ? await res.json() : null;
+
+    if (data?.ruta?.length) {
+      drawRoute(data.ruta);
+    } else {
+      await drawRoadRouteWithOSRM(a, b);
+    }
+  } catch {
+    await drawRoadRouteWithOSRM(a, b);
+  }
 }
 
 // ========================================
@@ -651,7 +747,7 @@ function showStatus(type, message) {
 }
 
 function resetForm() {
-  // Limpiar inputs visibles (direcciones)
+  // Inputs visibles
   document.getElementById('origen').value = '';
   document.getElementById('destino').value = '';
   document.getElementById('origenAddress').textContent = '';
@@ -659,15 +755,16 @@ function resetForm() {
   delete document.getElementById('origen').dataset.node;
   delete document.getElementById('destino').dataset.node;
 
-  // Limpiar markers y ruta
+  // Markers/ruta
   if (originMarker) { map.removeLayer(originMarker); originMarker = null; }
   if (destinationMarker) { map.removeLayer(destinationMarker); destinationMarker = null; }
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+  clearPreviewLine();
 
-  // Ocultar resultados
+  // Resultados
   document.getElementById('results').style.display = 'none';
 
-  // Resetear modo
+  // Modo
   document.querySelector('input[name="setMode"][value="origen"]').checked = true;
   mode = 'origen';
 

@@ -1,14 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from datetime import datetime
 import re
-from flask import jsonify
 import servicios.gestor_rutas as gr
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 # --- NODOS DEL GRAFO (read-only) ---
-from flask import jsonify
-import servicios.gestor_rutas as gr  # importa tu gestor real
-
-# Fallback con los mismos nodos que dibujabas antes (si tu grafo aún no trae coords)
 FALLBACK_NODES = [
     {"id":"centro_lima","nombre":"Centro de Lima","lat":-12.0464,"lng":-77.0428},
     {"id":"miraflores","nombre":"Miraflores","lat":-12.1203,"lng":-77.0282},
@@ -26,13 +23,12 @@ FALLBACK_NODES = [
     {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428},
 ]
 
-
 # === Importa TODO desde servicios y usa solo esto ===
 from servicios.usuarios_repo import (
-    PASAJEROS_FILE, CONDUCTORES_FILE,  # solo para prints opcionales
+    PASAJEROS_FILE, CONDUCTORES_FILE,
     crear_directorio_data,
     get_usuarios, set_usuarios, usuario_existe,
-    buscar_usuario_por_correo, buscar_usuario_por_id,
+    buscar_usuario_por_correo, buscar_usuario_por_id,  # (importado, pero ya no se usa en dashboard/perfil)
     obtener_estadisticas, generar_id, guardar_viaje,
     listar_conductores_disponibles
 )
@@ -41,6 +37,17 @@ from servicios.gestor_rutas import calcular_mejor_ruta
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # en prod: usa variable de entorno
+
+# ---------------- Helper local: buscar por id DENTRO del tipo ----------------
+def get_user_by_id_and_tipo(user_id, tipo):
+    try:
+        uid = int(user_id)
+    except Exception:
+        return None
+    for u in get_usuarios(tipo):
+        if u.get("id") == uid:
+            return u
+    return None
 
 # ---------------- Decorador de auth ----------------
 def requiere_login(f):
@@ -75,6 +82,10 @@ def registro():
     telefono = request.form.get("telefono", "").strip()
     tipo = (request.form.get("tipo") or request.form.get("tipo_usuario") or "").strip()
 
+    # === NUEVO: password ===
+    password = (request.form.get("password") or "").strip()
+    password2 = (request.form.get("password2") or "").strip()  # si tu form tiene confirm
+
     # --- Campos de conductor (si aplica) ---
     licencia = request.form.get("licencia", "").strip() if tipo == "conductor" else None
     placa    = request.form.get("placa", "").strip() if tipo == "conductor" else None
@@ -86,32 +97,35 @@ def registro():
     if not nombre:   faltantes.append("nombre")
     if not correo:   faltantes.append("correo")
     if not telefono: faltantes.append("telefono")
+    if not password: faltantes.append("contraseña")
     if tipo not in ["pasajero", "conductor"]:
         faltantes.append("tipo de usuario")
-
-    if tipo == "conductor":
-        if not licencia: faltantes.append("licencia")
-        if not placa:    faltantes.append("placa")
-        if not modelo:   faltantes.append("modelo")
-        if not color:    faltantes.append("color")
 
     if faltantes:
         flash(f"❌ Faltan los siguientes campos: {', '.join(faltantes)}", "error")
         return render_template("registro.html")
 
-    # --- Normaliza + valida campos de conductor ---
+    # Si hay confirmación en tu HTML:
+    if password2 and password != password2:
+        flash("❌ Las contraseñas no coinciden", "error")
+        return render_template("registro.html")
+
+    if len(password) < 6:
+        flash("❌ La contraseña debe tener al menos 6 caracteres", "error")
+        return render_template("registro.html")
+
+    # --- Validaciones de conductor ---
     if tipo == "conductor":
         licencia = licencia.upper()
         placa = placa.upper()
         modelo = modelo.title()
         color = color.title()
 
-        # Formato de placa (ajústalo si usas otro formato)
-        if not re.fullmatch(r"[A-Z]{3}-\d{3}", placa):
+        import re as _re
+        if not _re.fullmatch(r"[A-Z]{3}-\d{3}", placa):
             flash("❌ Formato de placa inválido. Usa ABC-123.", "error")
             return render_template("registro.html")
 
-        # Placa duplicada
         if any(c.get("placa", "").upper() == placa for c in get_usuarios("conductor")):
             flash("❌ Esa placa ya está registrada.", "error")
             return render_template("registro.html")
@@ -121,7 +135,7 @@ def registro():
         flash(f"❌ Ya existe un {tipo} registrado con ese correo electrónico", "error")
         return render_template("registro.html")
 
-    # --- Crear y guardar ---
+    # --- Crear y guardar (con password_hash) ---
     usuarios = get_usuarios(tipo)
     nuevo_usuario = {
         "id": generar_id(usuarios),
@@ -130,6 +144,7 @@ def registro():
         "telefono": telefono,
         "tipo": tipo,
         "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "password_hash": generate_password_hash(password, method="pbkdf2:sha256", salt_length=16),
     }
     if tipo == "conductor":
         nuevo_usuario.update({
@@ -153,32 +168,43 @@ def login():
     if request.method == "GET":
         return render_template("login.html")
 
-    correo = (request.form.get("email") or "").strip()
+    correo = (request.form.get("email") or "").strip().lower()
+    password = (request.form.get("password") or "").strip()
     tipo = (request.form.get("tipo") or request.form.get("tipo_usuario") or "").strip()
 
-    if not correo:
-        flash("❌ El correo electrónico es obligatorio", "error")
+    if not correo or not password:
+        flash("❌ Correo y contraseña son obligatorios", "error")
         return render_template("login.html")
 
-    usuario = None
-    if tipo in ['pasajero', 'conductor']:
+    # Buscar usuario por tipo (si tu HTML NO pide tipo, probamos en ambos)
+    if tipo in ("pasajero", "conductor"):
         usuario = buscar_usuario_por_correo(correo, tipo)
     else:
-        usuario = buscar_usuario_por_correo(correo, 'pasajero') or \
-                  buscar_usuario_por_correo(correo, 'conductor')
+        usuario = buscar_usuario_por_correo(correo, "pasajero") or \
+                  buscar_usuario_por_correo(correo, "conductor")
 
     if not usuario:
-        flash("❌ No se encontró un usuario registrado con ese correo", "error")
+        flash("❌ No se encontró un usuario con ese correo", "error")
         return render_template("login.html")
 
+    pwd_hash = usuario.get("password_hash")
+    if not pwd_hash:
+        flash("❌ Tu cuenta no tiene contraseña establecida. Regístrate de nuevo.", "error")
+        return render_template("login.html")
+
+    if not check_password_hash(pwd_hash, password):
+        flash("❌ Contraseña incorrecta", "error")
+        return render_template("login.html")
+
+    # OK → crear sesión
     session.clear()
     session.update(
-        user_id=usuario['id'],
-        user_name=usuario['nombre'],
-        user_email=usuario['correo'],
-        user_type=usuario['tipo'],
-        user_phone=usuario['telefono'],
-        user_date=usuario['fecha_registro'],
+        user_id=usuario["id"],
+        user_name=usuario["nombre"],
+        user_email=usuario["correo"],
+        user_type=usuario["tipo"],
+        user_phone=usuario["telefono"],
+        user_date=usuario["fecha_registro"],
     )
     if request.form.get('remember'):
         session.permanent = True
@@ -186,13 +212,18 @@ def login():
     flash(f"✅ Bienvenido, {usuario['nombre']}!", "success")
     return redirect(url_for('dashboard'))
 
+
+
+
 @app.route("/dashboard")
 @requiere_login
 def dashboard():
-    usuario_actual = buscar_usuario_por_id(session['user_id'])
+    # Usa el tipo guardado en sesión para evitar confusiones por IDs repetidos
+    tipo = session.get('user_type', 'pasajero')
+    usuario_actual = get_user_by_id_and_tipo(session['user_id'], tipo)
     if not usuario_actual:
         session.clear()
-        flash("❌ Error: Usuario no encontrado", "error")
+        flash("❌ Sesión inválida. Inicia sesión nuevamente.", "error")
         return redirect(url_for('login'))
     stats = obtener_estadisticas()
     return render_template("dashboard.html", usuario=usuario_actual, stats=stats)
@@ -239,7 +270,12 @@ def mis_rutas():
 @app.route("/perfil")
 @requiere_login
 def perfil():
-    usuario = buscar_usuario_por_id(session['user_id'])
+    tipo = session.get('user_type', 'pasajero')
+    usuario = get_user_by_id_and_tipo(session['user_id'], tipo)
+    if not usuario:
+        session.clear()
+        flash("❌ Sesión inválida. Inicia sesión nuevamente.", "error")
+        return redirect(url_for('login'))
     return f"""
     <h1>👤 Perfil de {usuario['nombre']}</h1>
     <p><strong>📧 Email:</strong> {usuario['correo']}</p>
@@ -304,7 +340,6 @@ def api_grafo_nodos():
     try:
         nodos = []
 
-        # Opción A: si tu gestor expone un dict con coords
         if hasattr(gr, "NODOS_COORDS"):
             for nid, n in gr.NODOS_COORDS.items():
                 nodos.append({
@@ -312,8 +347,6 @@ def api_grafo_nodos():
                     "nombre": n.get("nombre", nid),
                     "lat": n.get("lat"), "lng": n.get("lng")
                 })
-
-        # Opción B: si tu gestor tiene .grafo tipo networkx con atributos
         elif hasattr(gr, "grafo") and hasattr(gr.grafo, "nodes"):
             for nid, data in gr.grafo.nodes(data=True):
                 nodos.append({
@@ -322,7 +355,6 @@ def api_grafo_nodos():
                     "lat": data.get("lat"), "lng": data.get("lng")
                 })
 
-        # Fallback si aún no tienes coords en el grafo
         if not nodos:
             nodos = FALLBACK_NODES
 
