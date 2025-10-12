@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Mis Viajes</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%); padding: 2rem; color: #333; }
+        .container { max-width: 900px; margin: auto; background: rgba(255,255,255,0.95); border-radius: 20px; padding: 3rem; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 2.5rem; }
+        .header h1 { font-size: 2.2rem; }
+        .viaje-card { background: white; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border-left: 5px solid #ffd93d; }
+        .viaje-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .viaje-ruta { font-weight: 600; font-size: 1.2rem; }
+        .viaje-fecha { font-size: 0.9rem; color: #666; }
+        .viaje-body { display: grid; gap: 0.8rem; }
+        .detalle-item { display: flex; align-items: center; gap: 0.8rem; color: #555; }
+        .detalle-item i { color: #ff9800; width: 20px; }
+        .actions { margin-top: 1.5rem; text-align: right; }
+        .btn { padding: 0.8rem 1.5rem; border-radius: 12px; text-decoration: none; font-weight: 700; transition: all 0.3s ease; border: none; cursor: pointer; }
+        .btn-repetir { background: linear-gradient(45deg, #333, #555); color: #ffd93d; border: 2px solid #ffd93d; }
+        .btn-repetir:hover { background: #ffd93d; color: #333; transform: translateY(-2px); }
+        .btn-back { display: inline-block; margin-top: 2rem; background: #eee; color: #333; }
+        .empty-state { text-align: center; padding: 3rem; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-history"></i> Historial de Viajes</h1>
+        </div>
+
+        {% if viajes %}
+            {% for viaje in viajes %}
+            <div class="viaje-card">
+                <div class="viaje-header">
+                    <div class="viaje-ruta">
+                        <i class="fas fa-map-marker-alt"></i> {{ viaje.origen }} &rarr; <i class="fas fa-flag-checkered"></i> {{ viaje.destino }}
+                    </div>
+                    <div class="viaje-fecha">{{ viaje.fecha.split(' ')[0] }}</div>
+                </div>
+                <div class="viaje-body">
+                    <div class="detalle-item">
+                        <i class="fas fa-car"></i>
+                        <span>Conductor: <strong>{{ viaje.conductor_nombre }}</strong></span>
+                    </div>
+                    <div class="detalle-item">
+                        <i class="fas fa-road"></i>
+                        <span>Distancia: <strong>{{ "%.2f"|format(viaje.distancia) }} km</strong></span>
+                    </div>
+                </div>
+                <div class="actions">
+                    <a href="{{ url_for('repetir_viaje', origen=viaje.origen, destino=viaje.destino) }}" class="btn btn-repetir">
+                        <i class="fas fa-redo-alt"></i> Repetir Viaje
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>Aún no has realizado ningún viaje.</p>
+            </div>
+        {% endif %}
+
+        <div style="text-align: center;">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-back">
+                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            </a>
+        </div>
+    </div>
+</body>
+</html>
