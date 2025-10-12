@@ -61,7 +61,24 @@ async function init() {
   await fetchNodes();
   bindUI();
   setMinDate();
+  await processURLParams(); // <-- Añade esta línea
   console.log('✅ Aplicación inicializada correctamente');
+}
+
+async function processURLParams() {
+    const params = new URLSearchParams(window.location.search);
+    const origenName = params.get('origen');
+    const destinoName = params.get('destino');
+
+    if (origenName) {
+        const origenNode = nodesByName.get(origenName);
+        if (origenNode) await setPointFromNode('origen', origenNode);
+    }
+
+    if (destinoName) {
+        const destinoNode = nodesByName.get(destinoName);
+        if (destinoNode) await setPointFromNode('destino', destinoNode);
+    }
 }
 
 // ========================================
@@ -502,19 +519,14 @@ async function buscarViajes(e) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // --- LÓGICA MEJORADA ---
-    const origenLatLng = getLatLngFor('origen');
-    const destinoLatLng = getLatLngFor('destino');
+    // Intentar dibujar ruta del backend (si trae nodos o coords)
+    drawRoute(data.ruta || []);
 
-    // Si el backend encontró una ruta válida y tenemos los puntos en el mapa...
-    if ((data.ruta || []).length > 0 && origenLatLng && destinoLatLng) {
-        // ...entonces SIEMPRE dibujamos la ruta real usando el servicio externo.
-        console.log('Ruta válida encontrada. Dibujando con OSRM...');
-        await drawRoadRouteWithOSRM(origenLatLng, destinoLatLng);
-    } else {
-        // Si el backend no encontró ruta, nos aseguramos de limpiar cualquier línea anterior.
-        if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
-        clearPreviewLine();
+    // Si no hubo ruta real, pintar con OSRM entre los marcadores
+    if (!routeLayer) {
+      const a = getLatLngFor('origen');
+      const b = getLatLngFor('destino');
+      if (a && b) await drawRoadRouteWithOSRM(a, b);
     }
 
     displayResults(data.resultados || [], data.distancia);
