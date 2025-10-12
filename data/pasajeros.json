@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": 1,
+    "nombre": "Enzo Padilla Padilla",
+    "correo": "zopezlla@gmail.com",
+    "telefono": "+51 959 255 760",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-10-11 22:09:52",
+    "password_hash": "pbkdf2:sha256:1000000$1BSTiNdAwmGyZgNl$0578c12aaeea97c5b953ae2f1014597888d956e1ea6528c4860124c1daf4ab3c"
+  }
+]
