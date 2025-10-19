@@ -84,3 +84,29 @@ def guardar_viaje(viaje: Dict[str, Any]) -> bool:
     v = _leer_json(VIAJES_FILE)
     v.append(viaje)
     return _guardar_json_atomic(VIAJES_FILE, v)
+
+
+def get_viajes_por_pasajero(pasajero_id: int) -> List[Dict[str, Any]]:
+    """Lee todos los viajes y devuelve solo los de un pasajero específico."""
+    viajes = _leer_json(VIAJES_FILE)
+    viajes_pasajero = [v for v in viajes if v.get("pasajero_id") == pasajero_id]
+    return sorted(viajes_pasajero, key=lambda v: v.get("fecha", ""), reverse=True)
+
+
+def actualizar_usuario(user_id: int, tipo: str, datos_actualizados: Dict[str, Any]) -> bool:
+    """Actualiza los datos de un usuario y guarda el archivo."""
+    usuarios = get_usuarios(tipo)
+    usuario_encontrado = False
+    for i, u in enumerate(usuarios):
+        if u.get("id") == user_id:
+            if "nombre" in datos_actualizados:
+                usuarios[i]["nombre"] = datos_actualizados["nombre"]
+            if "telefono" in datos_actualizados:
+                usuarios[i]["telefono"] = datos_actualizados["telefono"]
+            usuario_encontrado = True
+            break
+
+    if usuario_encontrado:
+        return set_usuarios(tipo, usuarios)
+
+    return False

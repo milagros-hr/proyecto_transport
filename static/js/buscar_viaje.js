@@ -61,7 +61,24 @@ async function init() {
   await fetchNodes();
   bindUI();
   setMinDate();
+  await processURLParams(); // <-- Añade esta línea
   console.log('✅ Aplicación inicializada correctamente');
+}
+
+async function processURLParams() {
+    const params = new URLSearchParams(window.location.search);
+    const origenName = params.get('origen');
+    const destinoName = params.get('destino');
+
+    if (origenName) {
+        const origenNode = nodesByName.get(origenName);
+        if (origenNode) await setPointFromNode('origen', origenNode);
+    }
+
+    if (destinoName) {
+        const destinoNode = nodesByName.get(destinoName);
+        if (destinoNode) await setPointFromNode('destino', destinoNode);
+    }
 }
 
 // ========================================

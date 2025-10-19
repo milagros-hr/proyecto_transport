@@ -3,7 +3,10 @@ from datetime import datetime
 import re
 import servicios.gestor_rutas as gr
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from servicios.usuarios_repo import (
+    get_viajes_por_pasajero,
+    actualizar_usuario
+)
 
 # --- NODOS DEL GRAFO (read-only) ---
 FALLBACK_NODES = [
@@ -249,8 +252,22 @@ def mis_viajes():
     if session.get('user_type') != 'pasajero':
         flash("❌ Solo los pasajeros tienen historial de viajes", "error")
         return redirect(url_for('dashboard'))
-    return "<h1>📜 Mis Viajes</h1><p>Funcionalidad en desarrollo...</p><a href='/dashboard'>🔙 Volver al Dashboard</a>"
+    pasajero_id = session['user_id']
+    historial_viajes = get_viajes_por_pasajero(pasajero_id)
+    for viaje in historial_viajes:
+        conductor = get_user_by_id_and_tipo(viaje.get("conductor_id"), "conductor")
+        viaje["conductor_nombre"] = conductor["nombre"] if conductor else "No disponible"
+    return render_template("mis-viajes.html", viajes=historial_viajes)
 
+
+@app.route("/repetir-viaje")
+@requiere_login
+def repetir_viaje():
+    origen = request.args.get('origen')
+    destino = request.args.get('destino')
+    if not origen or not destino:
+        return redirect(url_for('mis_viajes'))
+    return redirect(url_for('buscar_viaje', origen=origen, destino=destino))
 @app.route("/crear-ruta")
 @requiere_login
 def crear_ruta():
@@ -267,24 +284,30 @@ def mis_rutas():
         return redirect(url_for('dashboard'))
     return "<h1>🚗 Mis Rutas</h1><p>Funcionalidad en desarrollo...</p><a href='/dashboard'>🔙 Volver al Dashboard</a>"
 
-@app.route("/perfil")
+@app.route("/perfil", methods=["GET", "POST"])
 @requiere_login
 def perfil():
-    tipo = session.get('user_type', 'pasajero')
-    usuario = get_user_by_id_and_tipo(session['user_id'], tipo)
+    tipo = session['user_type']
+    user_id = session['user_id']
+    usuario = get_user_by_id_and_tipo(user_id, tipo)
     if not usuario:
-        session.clear()
-        flash("❌ Sesión inválida. Inicia sesión nuevamente.", "error")
-        return redirect(url_for('login'))
-    return f"""
-    <h1>👤 Perfil de {usuario['nombre']}</h1>
-    <p><strong>📧 Email:</strong> {usuario['correo']}</p>
-    <p><strong>📱 Teléfono:</strong> {usuario['telefono']}</p>
-    <p><strong>🏷️ Tipo:</strong> {usuario['tipo'].title()}</p>
-    <p><strong>📅 Fecha de registro:</strong> {usuario['fecha_registro']}</p>
-    <p><a href='/dashboard'>🔙 Volver al Dashboard</a></p>
-    """
+        session.clear(); return redirect(url_for('login'))
 
+    if request.method == "POST":
+        nombre = request.form.get("nombre", "").strip()
+        telefono = request.form.get("telefono", "").strip()
+        if not nombre or not telefono:
+            flash("❌ El nombre y el teléfono son obligatorios.", "error")
+            return render_template("perfil.html", usuario=usuario)
+        if actualizar_usuario(user_id, tipo, {"nombre": nombre, "telefono": telefono}):
+            session['user_name'] = nombre
+            session['user_phone'] = telefono
+            flash("✅ Perfil actualizado.", "success")
+            return redirect(url_for('dashboard'))
+        else:
+            flash("❌ Error al actualizar el perfil.", "error")
+
+    return render_template("perfil.html", usuario=usuario)
 @app.route("/usuarios")
 def listar_usuarios():
     pasajeros = get_usuarios("pasajero")
@@ -382,10 +405,16 @@ def api_solicitar():
     }
     encolar_solicitud(solicitud)
     s = siguiente_solicitud()
-    viaje = {"id": generar_id([]), **s}
+
+    # --- LÓGICA CORREGIDA ---
+    viaje = {
+        "id": generar_id([]),
+        **s,
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
     guardar_viaje(viaje)
     return jsonify({"ok": True, "viaje": viaje})
-
 # ---------------- Main ----------------
 if __name__ == "__main__":
     crear_directorio_data()
