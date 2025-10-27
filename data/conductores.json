@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": 1,
+    "nombre": "MILAGROS ISABEL HUAYNATE ROMERO",
+    "correo": "milagrohuro2@gmail.com",
+    "telefono": "+51 904 457 665",
+    "tipo": "conductor",
+    "fecha_registro": "2025-10-27 00:42:19",
+    "password_hash": "pbkdf2:sha256:1000000$7YleRumwn1amQPBv$c4e6bf3108dcf19351c37fe9ef99ebebae11e6d1fb434f9b974c0953ec3073a9",
+    "licencia": "UIIUIU",
+    "placa": "BCF-842",
+    "modelo": "Ererer",
+    "color": "Rojo",
+    "capacidad": 4
+  }
+]

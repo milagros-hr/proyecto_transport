@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": 1,
+    "nombre": "MILAGROS ISABEL HUAYNATE ROMERO",
+    "correo": "milagrohuro@gmail.com",
+    "telefono": "+51 904 457 665",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-10-27 00:40:56",
+    "password_hash": "pbkdf2:sha256:1000000$olMxAet4IFMpzNDA$4eafb7d4928aed04be454bf94bddeee118ab6b0c3d0a7aed4c9a790e42b1fdc7"
+  }
+]

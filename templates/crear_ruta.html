@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Crear Ruta - TransPort</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#fff8f0; }
+    header { padding:12px; background:#ffcc33; text-align:center; }
+    #map { height:72vh; }
+    .info-panel { padding:8px; }
+    .sol-list { max-height:16vh; overflow:auto; border-top:1px solid #eee; }
+    .sol-item { padding:6px; border-bottom:1px solid #f0f0f0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>🛣️ Crear Ruta — Solicitudes cercanas</h2>
+    <p>Permite mostrar las solicitudes de pasajeros alrededor de tu ubicación.</p>
+  </header>
+
+  <div id="map"></div>
+
+  <div class="info-panel">
+    <button id="btn-refresh">🔄 Refrescar</button>
+    <div id="sol-list" class="sol-list"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{{ url_for('static', filename='js/crear_ruta.js') }}"></script>
+</body>
+</html>
