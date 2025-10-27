@@ -27,8 +27,16 @@ const FALLBACK_NODES = [
   {"id":"lince","nombre":"Lince","lat":-12.0876,"lng":-77.0364},
   {"id":"san_borja","nombre":"San Borja","lat":-12.1086,"lng":-77.0023},
   {"id":"surquillo","nombre":"Surquillo","lat":-12.1142,"lng":-77.0177},
-  {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428}
+  {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428},
+
+  // 🔹 NODOS NUEVOS - SECTOR NORTE
+  {"id":"los_olivos","nombre":"Los Olivos","lat":-11.957,"lng":-77.076},
+  {"id":"smp","nombre":"San Martín de Porres","lat":-12.000,"lng":-77.070},
+  {"id":"comas","nombre":"Comas","lat":-11.944,"lng":-77.062},
+  {"id":"independencia","nombre":"Independencia","lat":-11.993,"lng":-77.053},
+  {"id":"carabayllo","nombre":"Carabayllo","lat":-11.905,"lng":-77.031}
 ];
+
 
 // === Estado global ===
 let map;
@@ -174,21 +182,42 @@ function indexAndDraw() {
 }
 
 function drawNodes() {
+  // Eliminar los nodos previos
   nodeMarkers.forEach(m => map.removeLayer(m));
   nodeMarkers = [];
 
-  nodes.forEach(node => {
-    if (!node.lat || !node.lng) return;
+  // 🔹 Usar FALLBACK_NODES si nodes está vacío o incompleto
+  let list = [];
 
+  if (Array.isArray(nodes) && nodes.length > 0) {
+    list = nodes.filter(n => n && n.lat && n.lng);
+  }
+
+  // Si la lista principal está vacía o tiene pocos nodos, usa los de respaldo
+  if (list.length < 15 && typeof FALLBACK_NODES !== "undefined") {
+    console.warn(`⚠️ Solo ${list.length} nodos cargados, usando FALLBACK_NODES (${FALLBACK_NODES.length})`);
+    list = FALLBACK_NODES;
+  }
+
+  // Dibujar cada nodo
+  list.forEach(node => {
     const marker = L.circleMarker([node.lat, node.lng], {
-      radius: 6, fillColor: '#ffd93d', color: '#333', weight: 2,
-      opacity: 1, fillOpacity: 0.85
+      radius: 6,
+      fillColor: "#ffd93d",
+      color: "#333",
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.85
     });
 
-    marker.bindTooltip(node.nombre, { permanent: false, direction: 'top', className: 'node-tooltip' });
+    marker.bindTooltip(node.nombre, {
+      permanent: false,
+      direction: "top",
+      className: "node-tooltip"
+    });
 
     // Click en un nodo -> usar coords del nodo
-    marker.on('click', async () => {
+    marker.on("click", async () => {
       await setPointFromNode(mode, node);
     });
 
@@ -198,6 +227,7 @@ function drawNodes() {
 
   console.log(`🎯 ${nodeMarkers.length} nodos dibujados en el mapa`);
 }
+
 
 function setupAutocomplete() {
   const datalist = document.getElementById('nodosList');
@@ -241,7 +271,33 @@ async function setPointFromCoords(kind, lat, lng) {
   await previewRealRouteIfBoth();
 
   console.log(`✅ ${kind} por coords → nodo: ${input.dataset.node || 'N/A'}`);
+  checkFormValidity();
 }
+
+function snapToNearestNode(lat, lng) {
+  // ⚡ Forzar a usar los nodos de respaldo (FALLBACK_NODES)
+  const list = FALLBACK_NODES;
+
+  if (!Array.isArray(list) || list.length === 0) {
+    console.warn("⚠️ No hay nodos en FALLBACK_NODES");
+    return null;
+  }
+
+  let nearest = null;
+  let minKm = Infinity;
+
+  for (const n of list) {
+    const dKm = haversine(lat, lng, n.lat, n.lng);
+    if (dKm < minKm) {
+      minKm = dKm;
+      nearest = n;
+    }
+  }
+
+  console.log(`📍 Nodo más cercano a (${lat.toFixed(4)}, ${lng.toFixed(4)}) = ${nearest.nombre} (${minKm.toFixed(2)} km)`);
+  return nearest;
+}
+
 
 // 2) Desde un nodo (click en nodo o datalist)
 async function setPointFromNode(kind, node) {
@@ -271,6 +327,7 @@ async function setPointFromNode(kind, node) {
   await previewRealRouteIfBoth();
 
   console.log(`✅ ${kind} por nodo → ${node.nombre}`);
+  checkFormValidity();
 }
 
 // ========================================
@@ -376,6 +433,9 @@ function bindUI() {
       }, 350);
     });
   });
+  // Al cambiar el número de pasajeros, volver a validar
+document.getElementById('pasajeros').addEventListener('change', checkFormValidity);
+
 }
 
 // ========================================
@@ -432,18 +492,34 @@ async function forwardGeocode(query) {
 // ========================================
 
 function snapToNearestNode(lat, lng) {
-  if (nodes.length === 0) return null;
-  const valid = nodes.filter(n => n.lat && n.lng);
-  if (!valid.length) return null;
+  // Combinar nodos cargados con los de respaldo
+  const allNodes = Array.isArray(nodes) && nodes.length > 0
+    ? [...nodes, ...FALLBACK_NODES]
+    : FALLBACK_NODES;
 
   let nearest = null;
   let minDist = Infinity;
-  for (const n of valid) {
-    const d = haversine(lat, lng, n.lat, n.lng);
-    if (d < minDist) { minDist = d; nearest = n; }
+
+  allNodes.forEach(n => {
+    if (!n.lat || !n.lng) return;
+    const d = Math.sqrt(Math.pow(n.lat - lat, 2) + Math.pow(n.lng - lng, 2));
+    if (d < minDist) {
+      minDist = d;
+      nearest = n;
+    }
+  });
+
+  // 🔧 Si está dentro de un radio razonable (~0.2 ≈ 20km)
+  if (nearest && minDist < 0.2) {
+    console.log(`📍 Nodo más cercano a (${lat.toFixed(5)}, ${lng.toFixed(5)}): ${nearest.nombre} (distancia: ${minDist.toFixed(4)})`);
+    return nearest;
   }
-  return nearest;
+
+  console.warn(`⚠️ Ningún nodo cercano detectado para coords (${lat}, ${lng}) (minDist: ${minDist})`);
+  return null;
 }
+
+
 
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371; // km
@@ -469,83 +545,172 @@ function getLatLngFor(kind) {
 
 async function drawRoadRouteWithOSRM(from, to) {
   try {
-    // OSRM demo (solo para dev; en prod monta propio router)
+    // 🔹 Solicitud al servicio OSRM (enrutamiento público)
     const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
     const r = await fetch(url);
     const j = await r.json();
-    if (j.code !== 'Ok' || !j.routes || !j.routes.length) throw new Error('Sin ruta');
+
+    if (j.code !== 'Ok' || !j.routes || !j.routes.length) {
+      throw new Error('Sin ruta');
+    }
 
     const geo = j.routes[0].geometry; // GeoJSON LineString
-    if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+
+    // 🔹 Eliminar ruta anterior
+    if (routeLayer) {
+      map.removeLayer(routeLayer);
+      routeLayer = null;
+    }
     clearPreviewLine();
 
-    routeLayer = L.geoJSON(geo, { style: { color: '#ff9800', weight: 5, opacity: 0.85 } }).addTo(map);
+    // 🔹 Dibujar la nueva ruta (celeste)
+    routeLayer = L.geoJSON(geo, {
+      style: {
+        color: '#00bfff',   // 💧 azul celeste brillante
+        weight: 6,          // grosor medio
+        opacity: 0.9,       // leve transparencia
+        lineJoin: 'round',  // esquinas suaves
+        lineCap: 'round'    // extremos redondeados
+      }
+    }).addTo(map);
+
+    // 🔹 Centrar mapa en la ruta
     const tmp = L.geoJSON(geo);
     map.fitBounds(tmp.getBounds(), { padding: [50, 50] });
+
+    console.log('🗺️ Ruta OSRM trazada correctamente en color celeste');
   } catch (e) {
-    console.warn('OSRM fallback falló:', e);
-    // Si falla OSRM, al menos la línea punteada
+    console.warn('⚠️ OSRM fallback falló:', e);
+    // Si falla OSRM, mostrar la línea punteada al menos
     updatePreviewLine();
   }
 }
+
 
 // ========================================
 // BÚSQUEDA DE VIAJES
 // ========================================
 
-async function buscarViajes(e) {
-  e.preventDefault();
+// Helper: busca un nodo por nombre (case-insensitive) en nodes o FALLBACK_NODES
+function findNodeByName(name) {
+  if (!name) return null;
+  const list = (typeof nodes !== "undefined" && nodes.length > 0) ? nodes : FALLBACK_NODES;
+  const nm = name.toString().trim().toLowerCase();
+  return list.find(n => (n.nombre || n.name || "").toString().trim().toLowerCase() === nm) || null;
+}
 
-  const origenNode = document.getElementById('origen').dataset.node || '';
-  const destinoNode = document.getElementById('destino').dataset.node || '';
-  const pasajeros = document.getElementById('pasajeros').value;
+async function buscarViajes(e) {
+  if (e && e.preventDefault) e.preventDefault();
+
+  // lee lo que el UI realmente tiene
+  const origenInput = document.getElementById('origen');
+  const destinoInput = document.getElementById('destino');
+  const pasajerosInput = document.getElementById('pasajeros');
+
+  // preferimos dataset.node (establecido por setPointFromCoords/setPointFromNode)
+  let origenNode = origenInput ? (origenInput.dataset.node || '').toString().trim() : '';
+  let destinoNode = destinoInput ? (destinoInput.dataset.node || '').toString().trim() : '';
+  const pasajeros = pasajerosInput ? pasajerosInput.value : '';
+
+  // DEBUG: mostrar en consola lo que tenemos antes de enviar
+  console.log("🔎 buscarViajes - antes:", {
+    origenValue: origenInput ? origenInput.value : null,
+    origenDataset: origenNode,
+    destinoValue: destinoInput ? destinoInput.value : null,
+    destinoDataset: destinoNode,
+    pasajeros
+  });
+
+  // Si dataset.node está vacío, intentamos obtener nodo por nombre a partir del texto visible
+  if (!origenNode && origenInput && origenInput.value) {
+    const found = findNodeByName(origenInput.value);
+    if (found) {
+      origenNode = found.nombre;
+      origenInput.dataset.node = found.nombre; // sincroniza UI
+      console.log("➡️ asignado origenNode desde texto:", origenNode);
+    }
+  }
+  if (!destinoNode && destinoInput && destinoInput.value) {
+    const found = findNodeByName(destinoInput.value);
+    if (found) {
+      destinoNode = found.nombre;
+      destinoInput.dataset.node = found.nombre;
+      console.log("➡️ asignado destinoNode desde texto:", destinoNode);
+    }
+  }
+
+  // Si aún no hay nodo, pero hay coords en state, intentar snap desde coords
+  if (!origenNode && state.origen && state.origen.lat != null) {
+    const snap = snapToNearestNode(state.origen.lat, state.origen.lng);
+    if (snap) {
+      origenNode = snap.nombre;
+      document.getElementById('origen').dataset.node = snap.nombre;
+      console.log("➡️ asignado origenNode por snapToNearestNode:", origenNode);
+    }
+  }
+  if (!destinoNode && state.destino && state.destino.lat != null) {
+    const snap = snapToNearestNode(state.destino.lat, state.destino.lng);
+    if (snap) {
+      destinoNode = snap.nombre;
+      document.getElementById('destino').dataset.node = snap.nombre;
+      console.log("➡️ asignado destinoNode por snapToNearestNode:", destinoNode);
+    }
+  }
+
+  // Última verificación antes de enviar
+  console.log("🔔 buscarViajes - enviando:", { origenNode, destinoNode, pasajeros });
 
   if (!origenNode || !destinoNode || !pasajeros) {
-    showStatus('error', 'Completa origen y destino válidos (deben asociarse a un nodo).');
+    showStatus('error', 'Completa origen y destino válidos (deben asociarse a un nodo) y número de pasajeros.');
     return;
   }
 
-  const searchBtn = document.getElementById('searchBtn');
-  searchBtn.disabled = true;
-  searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
-
+  // Construir URL y fetch
   try {
+    const searchBtn = document.getElementById('searchBtn');
+    searchBtn.disabled = true;
+    searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+
     const url = new URL(API.buscar, window.location.origin);
     url.searchParams.set('origen', origenNode);
     url.searchParams.set('destino', destinoNode);
     url.searchParams.set('pasajeros', pasajeros);
 
+    // DEBUG: ver la URL completa antes de enviar
+    console.log("📡 Fetch URL:", url.toString());
+
     const res = await fetch(url, { credentials: 'same-origin' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // Intentar dibujar ruta del backend (si trae nodos o coords)
-    drawRoute(data.ruta || []);
-
-    // Si no hubo ruta real, pintar con OSRM entre los marcadores
-    if (!routeLayer) {
-      const a = getLatLngFor('origen');
-      const b = getLatLngFor('destino');
-      if (a && b) await drawRoadRouteWithOSRM(a, b);
+    // procesar y mostrar
+    if (data.resultados && data.resultados.length) {
+      displayResults(data.resultados || [], data.distancia);
+    } else {
+      showStatus('warning', 'No se encontraron viajes disponibles para esta ruta.');
+      document.getElementById('results').style.display = 'none';
     }
-
-    displayResults(data.resultados || [], data.distancia);
   } catch (err) {
-    console.error('❌ Error en búsqueda:', err);
+    console.error('  Error en búsqueda (frontend):', err);
     showStatus('error', 'Error al buscar viajes. Intenta de nuevo.');
     document.getElementById('results').style.display = 'none';
   } finally {
-    searchBtn.disabled = false;
-    searchBtn.innerHTML = '<i class="fas fa-search"></i> Buscar Viajes Disponibles';
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.innerHTML = '<i class="fas fa-search"></i> Buscar Viajes Disponibles';
+    }
   }
 }
+
 
 // ========================================
 // DIBUJO DE RUTA
 // ========================================
 
 function drawRoute(ruta) {
-  // Si pintamos ruta real, quitamos la punteada de vista previa
+  // *** ESTA FUNCIÓN AHORA SE VUELVE OBSOLETA POR EL USO DE OSRM ***
+  // La dejamos pero ya no se llama en buscarViajes.
   clearPreviewLine();
 
   if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
@@ -618,31 +783,8 @@ async function previewRealRouteIfBoth() {
     return;
   }
 
-  // Si no hay ambos nodos asociados, dibuja directo con OSRM
-  if (!state.origen.nodeName || !state.destino.nodeName) {
-    await drawRoadRouteWithOSRM(a, b);
-    return;
-  }
-
-  // Intento “ligero” con tu backend (no cambia lógica)
-  try {
-    const url = new URL(API.buscar, window.location.origin);
-    url.searchParams.set('origen', state.origen.nodeName);
-    url.searchParams.set('destino', state.destino.nodeName);
-    url.searchParams.set('pasajeros', 1);
-    url.searchParams.set('preview', 1); // hint opcional
-
-    const res = await fetch(url, { credentials: 'same-origin' });
-    const data = res.ok ? await res.json() : null;
-
-    if (data?.ruta?.length) {
-      drawRoute(data.ruta);
-    } else {
-      await drawRoadRouteWithOSRM(a, b);
-    }
-  } catch {
-    await drawRoadRouteWithOSRM(a, b);
-  }
+  // Ahora, si tenemos coordenadas de inicio y fin, siempre usamos OSRM para previsualizar.
+  await drawRoadRouteWithOSRM(a, b);
 }
 
 // ========================================
@@ -703,7 +845,8 @@ async function reservarViaje(conductorId, resultIdx) {
       conductor_id: conductorId,
       origen: origenNode,
       destino: destinoNode,
-      ruta: [],
+      // NOTA: No enviamos la ruta de nodos aquí ya que solo la usamos para la distancia.
+      ruta: [], 
       distancia: 0
     };
 

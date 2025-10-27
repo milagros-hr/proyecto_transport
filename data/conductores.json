@@ -1,15 +1,1 @@
-[
-  {
-    "id": 1,
-    "nombre": "Enzo Padilla Padilla",
-    "correo": "enzo.lopezp@unmsm.edu.pe",
-    "telefono": "enzo.lopezp@unmsm.edu.pe",
-    "tipo": "conductor",
-    "fecha_registro": "2025-10-11 22:13:26",
-    "password_hash": "pbkdf2:sha256:1000000$oxL1ghuWhiy1f1IJ$a5bc66a449039056f74fcbb9737695dd21d24c279f7e0ab3b89da2e3a94d7c4b",
-    "licencia": "124235",
-    "placa": "OLA-123",
-    "modelo": "Tesla X",
-    "color": "Blanco"
-  }
-]
+[]

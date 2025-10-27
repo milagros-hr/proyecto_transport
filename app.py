@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from servicios import usuarios_repo, gestor_rutas
+
 from datetime import datetime
 import re
 import servicios.gestor_rutas as gr
@@ -155,6 +157,8 @@ def registro():
             "placa": placa,
             "modelo": modelo,
             "color": color,
+            # Añadir capacidad por defecto (asumimos 4 asientos en autos comunes)
+            "capacidad": 4, 
         })
 
     usuarios.append(nuevo_usuario)
@@ -328,35 +332,57 @@ def inject_stats():
     return {'stats': obtener_estadisticas()}
 
 # ---------------- API ----------------
+# --- BUSCAR VIAJES DISPONIBLES ---
 @app.get("/api/buscar-viajes")
-@requiere_login
-def api_buscar_viajes():
-    origen = request.args.get("origen")
-    destino = request.args.get("destino")
-    pasajeros = int(request.args.get("pasajeros", "1"))
+def buscar_viajes():
+    try:
+        origen = request.args.get("origen")
+        destino = request.args.get("destino")
+        pasajeros = request.args.get("pasajeros")
 
-    if not origen or not destino:
-        return jsonify({"error": "Origen y destino son obligatorios"}), 400
+        if not origen or not destino:
+            return jsonify({"error": "Faltan parámetros"}), 400
 
-    distancia, ruta = calcular_mejor_ruta(origen, destino)
-    if not ruta:
-        return jsonify({"resultados": []})
+        # Calcular la mejor ruta usando el grafo
+        distancia, ruta = gestor_rutas.calcular_mejor_ruta(origen, destino)
 
-    conductores = listar_conductores_disponibles()[:3]
-    resultados = []
-    for c in conductores:
-        resultados.append({
-            "id": c["id"],
-            "conductor": c["nombre"],
-            "vehiculo": f'{c.get("modelo","N/A")} - {c.get("placa","")}',
-            "precio": f"S/ {max(6.0, 1.2*distancia):.2f}",
-            "tiempo": f"{int(5 + distancia*2)} min",
-            "origen": origen,
-            "destino": destino,
+        # Si no existe camino posible entre los nodos
+        if distancia == float("inf") or not ruta:
+            return jsonify({"resultados": [], "distancia": 0})
+
+        # Obtener todos los conductores registrados
+        conductores = usuarios_repo.listar_conductores_disponibles()
+        resultados = []
+
+        # Crear resultados simulados para mostrar en el frontend
+        for c in conductores:
+            # --- Calcular precio ---
+            precio_km = 2.5  # soles por km
+            precio = round(max(5, distancia * precio_km), 2)  # precio mínimo S/5
+
+            resultados.append({
+                "id": c.get("id"),
+                "conductor": c.get("nombre", "Sin nombre"),
+                "vehiculo": f"{c.get('modelo', 'Modelo N/D')} {c.get('color', '')} - {c.get('placa', '')}",
+                "origen": origen,
+                "destino": destino,
+                "tiempo": f"{round(distancia * 3, 1)} min",
+                "asientos": 4,
+                "precio": f"S/ {precio}"
+            })
+
+
+        return jsonify({
+            "distancia": distancia,
             "ruta": ruta,
-            "asientos": 4,
-        })
-    return jsonify({"distancia": distancia, "ruta": ruta, "resultados": resultados})
+            "resultados": resultados
+        }), 200
+
+    except Exception as e:
+        # Log para ver el error real en consola
+        print("❌ Error en /api/buscar-viajes:", e)
+        return jsonify({"error": str(e)}), 500
+
 
 @app.get("/api/grafo/nodos")
 def api_grafo_nodos():

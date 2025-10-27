@@ -2,7 +2,6 @@ from estructuras.grafo import Grafo
 
 def crear_grafo_lima() -> Grafo:
     g = Grafo()
-    # Pesos aproximados (distancia/tiempo relativos). Ajusta a gusto para el curso.
     edges = [
         ("Cercado de Lima", "Jesús María", 3),
         ("Cercado de Lima", "Lince", 4),
@@ -18,10 +17,19 @@ def crear_grafo_lima() -> Grafo:
         ("San Miguel", "Callao", 7),
         ("Jesús María", "Lince", 2),
         ("San Isidro", "San Borja", 4),
+
+        ("Los Olivos", "San Martín de Porres", 3),
+        ("San Martín de Porres", "Independencia", 3),
+        ("San Martín de Porres", "Comas", 4),
+        ("Comas", "Carabayllo", 5),
+        ("Independencia", "Jesús María", 6),
+        ("San Martín de Porres", "Cercado de Lima", 7)
     ]
+
     for u, v, w in edges:
         g.agregar_arista(u, v, w, bidireccional=True)
     return g
+
 
 GRAFO = crear_grafo_lima()
 

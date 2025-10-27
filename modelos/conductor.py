@@ -3,12 +3,19 @@ from datetime import datetime
 from typing import List
 
 @dataclass
-class Viaje:
+class Conductor:
+    """Clase para representar a un Conductor en TransPort."""
     id: int
-    pasajero_id: int
-    conductor_id: int
-    origen: str
-    destino: str
-    ruta: List[str]
-    distancia: float
-    fecha: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    nombre: str
+    correo: str
+    telefono: str
+    
+    # Campos exclusivos de Conductor, tomados del formulario de registro
+    licencia: str
+    placa: str
+    modelo: str
+    color: str
+    
+    # Campos base de usuario
+    tipo: str = "conductor" 
+    fecha_registro: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
