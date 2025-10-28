@@ -1,122 +1,105 @@
-// Script para Crear Ruta: mapa + solicitudes alrededor del conductor
-(function () {
+// Script mejorado para crear ruta (modo conductor)
+(function() {
   const mapDiv = document.getElementById('map');
   if (!mapDiv) return;
 
-  let map = null;
-  let conductorMarker = null;
-  let solicitudMarkers = [];
-  let pollId = null;
+  let map, conductorMarker, solicitudMarkers = [], partidaElegida = null;
+
+  const carIcon = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18]
+  });
 
   function initMap(lat, lng) {
     map = L.map('map').setView([lat, lng], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
+      maxZoom: 19
     }).addTo(map);
 
-    const carIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
-    });
-
-    conductorMarker = L.marker([lat, lng], { icon: carIcon }).addTo(map)
-      .bindPopup('🚗 Tu ubicación (conductor)').openPopup();
+    conductorMarker = L.marker([lat, lng], { icon: carIcon })
+      .addTo(map)
+      .bindPopup('🚗 Tu ubicación').openPopup();
   }
 
-  function clearSolicitudMarkers() {
+  function limpiarSolicitudes() {
     solicitudMarkers.forEach(m => map.removeLayer(m));
     solicitudMarkers = [];
   }
 
-  function drawSolicitudes(sols, lat, lng) {
-    clearSolicitudMarkers();
-    const listDiv = document.getElementById('sol-list');
-    listDiv.innerHTML = '';
-    if (!Array.isArray(sols) || sols.length === 0) {
-      listDiv.innerHTML = '<div class="sol-item">No hay solicitudes por el momento.</div>';
+  function mostrarSolicitudes(sols) {
+    const list = document.getElementById('sol-list');
+    limpiarSolicitudes();
+    list.innerHTML = '';
+
+    if (!sols.length) {
+      list.innerHTML = '<div class="sol-item">No hay solicitudes disponibles.</div>';
       return;
     }
 
-    const radiusDeg = 0.0012; // pequeño radio alrededor del conductor (~120m)
     sols.forEach((s, i) => {
-      let latO = null, lngO = null;
-      if (s && s.origen && typeof s.origen === 'object' && s.origen.lat != null && s.origen.lng != null) {
-        latO = parseFloat(s.origen.lat); lngO = parseFloat(s.origen.lng);
-      }
+      const lat = s.origen?.lat || -12.05 + Math.random() * 0.02;
+      const lng = s.origen?.lng || -77.04 + Math.random() * 0.02;
+      const precio = s.precio || (5 + Math.random() * 10).toFixed(2);
 
-      let markerPos;
-      if (latO && lngO) {
-        markerPos = [latO, lngO];
-      } else {
-        const angle = (i / sols.length) * Math.PI * 2;
-        markerPos = [lat + Math.cos(angle) * radiusDeg, lng + Math.sin(angle) * radiusDeg];
-      }
-
-      const alertIcon = L.circleMarker(markerPos, {
-        radius: 9,
-        color: '#c0392b',
-        fillColor: '#e74c3c',
-        fillOpacity: 0.9,
-        weight: 1.2
-      }).addTo(map);
-
-      const infoHtml = `
-        <div><strong>Solicitud</strong></div>
-        <div>Pasajero: ${s.pasajero_id || s.pasajero || 'N/A'}</div>
-        <div>Origen: ${s.origen && (s.origen.nombre || s.origen.texto) ? (s.origen.nombre || s.origen.texto) : 'Desconocido'}</div>
-        <div>Destino: ${s.destino && (s.destino.nombre || s.destino.texto) ? (s.destino.nombre || s.destino.texto) : (s.destino || 'N/A')}</div>
-      `;
-      alertIcon.bindPopup(infoHtml);
-      solicitudMarkers.push(alertIcon);
+      const marker = L.marker([lat, lng]).addTo(map)
+        .bindPopup(`<b>${s.pasajero_id || 'Pasajero ' + i}</b><br>Destino: ${s.destino?.nombre || 'Desconocido'}<br>💵 S/${precio}`);
+      solicitudMarkers.push(marker);
 
       const item = document.createElement('div');
       item.className = 'sol-item';
-      item.innerHTML = infoHtml + `<div style="margin-top:6px"><button data-idx="${i}">Ver en mapa</button></div>`;
-      const btn = item.querySelector('button');
-      btn.addEventListener('click', () => {
-        map.setView(markerPos, 16);
-        alertIcon.openPopup();
-      });
-      listDiv.appendChild(item);
+      item.innerHTML = `
+        <b>${s.pasajero_id || 'Pasajero ' + i}</b><br>
+        Destino: ${s.destino?.nombre || 'Desconocido'}<br>
+        💵 <input type="number" id="precio${i}" value="${precio}" step="0.5" style="width:60px"> 
+        <button data-i="${i}">Ver</button>`;
+      list.appendChild(item);
+
+      item.querySelector('button').onclick = () => {
+        map.setView([lat, lng], 16);
+        marker.openPopup();
+      };
     });
   }
 
-  function fetchSolicitudesAndDraw(lat, lng) {
-    fetch('/api/solicitudes')
-      .then(r => r.json())
-      .then(data => drawSolicitudes(data || [], lat, lng))
-      .catch(err => console.error('Error fetching solicitudes', err));
-  }
-
-  function onPosition(pos) {
-    const lat = pos.coords.latitude, lng = pos.coords.longitude;
-    if (!map) initMap(lat, lng);
-    conductorMarker.setLatLng([lat, lng]);
-    map.setView([lat, lng]);
-    fetchSolicitudesAndDraw(lat, lng);
-    if (pollId) clearInterval(pollId);
-    pollId = setInterval(() => fetchSolicitudesAndDraw(lat, lng), 8000);
-  }
-
-  function onError() {
-    // fallback a Centro de Lima si geolocalización falla
-    const lat = -12.0464, lng = -77.0428;
-    initMap(lat, lng);
-    fetchSolicitudesAndDraw(lat, lng);
-  }
-
-  document.getElementById('btn-refresh').addEventListener('click', () => {
-    if (conductorMarker) {
-      const p = conductorMarker.getLatLng();
-      fetchSolicitudesAndDraw(p.lat, p.lng);
+  async function cargarSolicitudes(lat, lng) {
+    try {
+      const res = await fetch(`/api/solicitudes_cercanas?lat=${lat}&lng=${lng}`);
+      const data = await res.json();
+      mostrarSolicitudes(data);
+    } catch (err) {
+      console.error("Error cargando solicitudes:", err);
     }
-  });
-
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(onPosition, onError, { enableHighAccuracy: true, timeout: 8000 });
-  } else {
-    onError();
   }
+
+  function usarUbicacionGPS() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        if (!map) initMap(latitude, longitude);
+        conductorMarker.setLatLng([latitude, longitude]);
+        partidaElegida = { lat: latitude, lng: longitude };
+        cargarSolicitudes(latitude, longitude);
+      }, () => alert("No se pudo obtener tu ubicación"));
+    } else alert("Tu navegador no soporta GPS");
+  }
+
+  function elegirPartida() {
+    alert("Haz clic en el mapa para definir tu punto de partida");
+    map.once('click', e => {
+      const { lat, lng } = e.latlng;
+      if (conductorMarker) map.removeLayer(conductorMarker);
+      conductorMarker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
+      partidaElegida = { lat, lng };
+      cargarSolicitudes(lat, lng);
+    });
+  }
+
+  document.getElementById('btn-ubicacion').onclick = usarUbicacionGPS;
+  document.getElementById('btn-partida').onclick = elegirPartida;
+  document.getElementById('btn-refresh').onclick = () => {
+    if (partidaElegida) cargarSolicitudes(partidaElegida.lat, partidaElegida.lng);
+  };
+
+  initMap(-12.0464, -77.0428); // Lima por defecto
 })();

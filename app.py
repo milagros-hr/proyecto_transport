@@ -12,21 +12,26 @@ from servicios.usuarios_repo import (
 
 # --- NODOS DEL GRAFO (read-only) ---
 FALLBACK_NODES = [
-    {"id":"centro_lima","nombre":"Centro de Lima","lat":-12.0464,"lng":-77.0428},
-    {"id":"miraflores","nombre":"Miraflores","lat":-12.1203,"lng":-77.0282},
-    {"id":"san_isidro","nombre":"San Isidro","lat":-12.1040,"lng":-77.0348},
-    {"id":"barranco","nombre":"Barranco","lat":-12.1406,"lng":-77.0214},
-    {"id":"surco","nombre":"Surco","lat":-12.1339,"lng":-76.9931},
-    {"id":"la_molina","nombre":"La Molina","lat":-12.0794,"lng":-76.9397},
-    {"id":"callao","nombre":"Callao","lat":-12.0566,"lng":-77.1181},
-    {"id":"san_miguel","nombre":"San Miguel","lat":-12.0773,"lng":-77.0907},
-    {"id":"pueblo_libre","nombre":"Pueblo Libre","lat":-12.0740,"lng":-77.0615},
-    {"id":"jesus_maria","nombre":"Jesús María","lat":-12.0719,"lng":-77.0431},
-    {"id":"lince","nombre":"Lince","lat":-12.0876,"lng":-77.0364},
-    {"id":"san_borja","nombre":"San Borja","lat":-12.1086,"lng":-77.0023},
-    {"id":"surquillo","nombre":"Surquillo","lat":-12.1142,"lng":-77.0177},
-    {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428},
-]
+  {"id":"centro_lima","nombre":"Centro de Lima","lat":-12.0464,"lng":-77.0428},
+  {"id":"miraflores","nombre":"Miraflores","lat":-12.1203,"lng":-77.0282},
+  {"id":"san_isidro","nombre":"San Isidro","lat":-12.1040,"lng":-77.0348},
+  {"id":"barranco","nombre":"Barranco","lat":-12.1406,"lng":-77.0214},
+  {"id":"surco","nombre":"Surco","lat":-12.1339,"lng":-76.9931},
+  {"id":"la_molina","nombre":"La Molina","lat":-12.0794,"lng":-76.9397},
+  {"id":"callao","nombre":"Callao","lat":-12.0566,"lng":-77.1181},
+  {"id":"san_miguel","nombre":"San Miguel","lat":-12.0773,"lng":-77.0907},
+  {"id":"pueblo_libre","nombre":"Pueblo Libre","lat":-12.0740,"lng":-77.0615},
+  {"id":"jesus_maria","nombre":"Jesús María","lat":-12.0719,"lng":-77.0431},
+  {"id":"lince","nombre":"Lince","lat":-12.0876,"lng":-77.0364},
+  {"id":"san_borja","nombre":"San Borja","lat":-12.1086,"lng":-77.0023},
+  {"id":"surquillo","nombre":"Surquillo","lat":-12.1142,"lng":-77.0177},
+  {"id":"cercado","nombre":"Cercado de Lima","lat":-12.0464,"lng":-77.0428},
+  {"id":"los_olivos","nombre":"Los Olivos","lat":-11.957,"lng":-77.076},
+  {"id":"smp","nombre":"San Martín de Porres","lat":-12.000,"lng":-77.070},
+  {"id":"comas","nombre":"Comas","lat":-11.944,"lng":-77.062},
+  {"id":"independencia","nombre":"Independencia","lat":-11.993,"lng":-77.053},
+  {"id":"carabayllo","nombre":"Carabayllo","lat":-11.905,"lng":-77.031}
+];
 
 # === Importa TODO desde servicios y usa solo esto ===
 from servicios.usuarios_repo import (
@@ -37,7 +42,8 @@ from servicios.usuarios_repo import (
     obtener_estadisticas, generar_id, guardar_viaje,
     listar_conductores_disponibles
 )
-from servicios.solicitudes import encolar_solicitud, siguiente_solicitud
+
+from servicios.solicitudes import encolar_solicitud
 from servicios.gestor_rutas import calcular_mejor_ruta
 
 app = Flask(__name__)
@@ -278,7 +284,9 @@ def crear_ruta():
     if session.get('user_type') != 'conductor':
         flash("❌ Solo los conductores pueden crear rutas", "error")
         return redirect(url_for('dashboard'))
-    return "<h1>🛣️ Crear Ruta</h1><p>Funcionalidad en desarrollo...</p><a href='/dashboard'>🔙 Volver al Dashboard</a>"
+    return render_template("crear_ruta.html")
+
+
 
 @app.route("/mis-rutas")
 @requiere_login
@@ -412,39 +420,135 @@ def api_grafo_nodos():
         print("Error /api/grafo/nodos:", e)
         return jsonify([]), 500
 
-
 @app.post("/api/solicitar")
 @requiere_login
 def api_solicitar():
+    from servicios.solicitudes import encolar_solicitud  # import directo para evitar sombras
     data = request.get_json(force=True)
     pasajero_id = session.get("user_id")
     if not pasajero_id:
         return jsonify({"error": "No autenticado"}), 401
 
-    solicitud = {
+    # 1) Leer viajes actuales para generar ID
+    viajes_actuales = _leer_json(VIAJES_FILE)
+    nuevo_id = generar_id(viajes_actuales)
+
+    # 2) Normalizar origen/destino (garantiza lat/lng)
+    origen_raw = data.get("origen") or {}
+    destino_raw = data.get("destino") or {}
+    origen = _norm_point(origen_raw)
+    destino = _norm_point(destino_raw)
+
+    viaje_a_guardar = {
+        "id": nuevo_id,
         "pasajero_id": pasajero_id,
-        "conductor_id": data.get("conductor_id"),
-        "origen": data.get("origen"),
-        "destino": data.get("destino"),
+        "conductor_id": data.get("conductor_id"),  # None por ahora
+        "origen": origen,
+        "destino": destino,
         "ruta": data.get("ruta", []),
-        "distancia": data.get("distancia", 0.0),
-    }
-    encolar_solicitud(solicitud)
-    s = siguiente_solicitud()
-
-    # --- LÓGICA CORREGIDA ---
-    viaje = {
-        "id": generar_id([]),
-        **s,
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "distancia": float(data.get("distancia", 0.0)),
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "precio": float(data.get("precio", 0)) if str(data.get("precio", "")).strip() != "" else None,
+        "estado": "pendiente"
     }
 
-    guardar_viaje(viaje)
-    return jsonify({"ok": True, "viaje": viaje})
+    if guardar_viaje(viaje_a_guardar):
+        print("🟢 Guardado en viajes.json:", viaje_a_guardar)
+        encolar_solicitud(viaje_a_guardar)  # también persiste en solicitudes.json
+        return jsonify({"ok": True, "viaje": viaje_a_guardar}), 200
+
+    print("❌ Error al guardar viaje")
+    return jsonify({"ok": False, "error": "No se pudo guardar el viaje"}), 500
+
+@app.get("/api/solicitudes_cercanas")
+@requiere_login
+def solicitudes_cercanas():
+    """Devuelve solicitudes cercanas a la ubicación del conductor"""
+    try:
+        lat = float(request.args.get("lat", -12.0464))
+        lng = float(request.args.get("lng", -77.0428))
+
+        # Cargar solicitudes desde archivo JSON
+        from servicios.solicitudes import leer_solicitudes
+        solicitudes = leer_solicitudes()
+
+        # Filtro básico: devolver las más cercanas (simulado)
+        cercanas = []
+        for s in solicitudes:
+            o = s.get("origen", {})
+            if isinstance(o, dict) and "lat" in o and "lng" in o:
+                dist = ((lat - o["lat"])**2 + (lng - o["lng"])**2)**0.5
+                if dist < 0.1:  # radio de ~10 km
+                    cercanas.append(s)
+
+        return jsonify(cercanas or []), 200
+    except Exception as e:
+        print("Error en /api/solicitudes_cercanas:", e)
+        return jsonify([]), 500
+
+# --- Helpers de geodatos ---
+
+def _nodos_catalog():
+    # Intenta obtener nodos con coords desde servicios.gestor_rutas o usa FALLBACK_NODES
+    nodos = {}
+    try:
+        if hasattr(gr, "NODOS_COORDS"):
+            for nid, n in gr.NODOS_COORDS.items():
+                nodos[str(n.get("nombre", nid)).strip().lower()] = (float(n["lat"]), float(n["lng"]))
+        elif hasattr(gr, "grafo") and hasattr(gr.grafo, "nodes"):
+            for nid, data in gr.grafo.nodes(data=True):
+                nombre = str(data.get("nombre", nid)).strip().lower()
+                if "lat" in data and "lng" in data:
+                    nodos[nombre] = (float(data["lat"]), float(data["lng"]))
+    except Exception:
+        pass
+    # Fallback a constantes
+    if not nodos:
+        for n in FALLBACK_NODES:
+            nombre = str(n.get("nombre", n.get("id"))).strip().lower()
+            nodos[nombre] = (float(n["lat"]), float(n["lng"]))
+    return nodos
+
+_NODOS_LIMA = _nodos_catalog()
+
+def _lookup_coords(nombre):
+    if not nombre:
+        return None
+    key = str(nombre).strip().lower()
+    return _NODOS_LIMA.get(key)
+
+def _norm_point(p):
+    """Normaliza un punto {nombre, lat, lng}; si faltan coords, las busca por nombre."""
+    if not isinstance(p, dict):
+        p = {"nombre": str(p)}
+    nombre = p.get("nombre") or p.get("texto") or p.get("id") or "Desconocido"
+    lat = p.get("lat")
+    lng = p.get("lng")
+    if lat is None or lng is None:
+        hit = _lookup_coords(nombre)
+        if hit:
+            lat, lng = hit
+    try:
+        return {
+            "nombre": str(nombre),
+            "lat": float(lat if lat is not None else -12.0464),
+            "lng": float(lng if lng is not None else -77.0428),
+        }
+    except Exception:
+        return {"nombre": str(nombre), "lat": -12.0464, "lng": -77.0428}
+
+
+
 # ---------------- Main ----------------
 if __name__ == "__main__":
+    import os
+
+    # Inicializa directorios y archivos
     crear_directorio_data()
     print("🚖 TransPort iniciado - Datos en /data")
     print(f"📁 Pasajeros:  {PASAJEROS_FILE.resolve()}")
-    print(f"📁 Conductores:{CONDUCTORES_FILE.resolve()}")
-    app.run(debug=True)
+    print(f"📁 Conductores: {CONDUCTORES_FILE.resolve()}")
+
+    # Ejecuta el servidor Flask
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)

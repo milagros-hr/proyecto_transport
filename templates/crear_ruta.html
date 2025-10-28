@@ -10,20 +10,23 @@
     header { padding:12px; background:#ffcc33; text-align:center; }
     #map { height:72vh; }
     .info-panel { padding:8px; }
-    .sol-list { max-height:16vh; overflow:auto; border-top:1px solid #eee; }
+    .sol-list { max-height:18vh; overflow:auto; border-top:1px solid #eee; }
     .sol-item { padding:6px; border-bottom:1px solid #f0f0f0; }
+    button { margin:3px; }
   </style>
 </head>
 <body>
   <header>
-    <h2>🛣️ Crear Ruta — Solicitudes cercanas</h2>
-    <p>Permite mostrar las solicitudes de pasajeros alrededor de tu ubicación.</p>
+    <h2>🛣️ Crear Ruta — Modo Chofer</h2>
+    <button id="btn-ubicacion">📍 Usar mi ubicación</button>
+    <button id="btn-partida">✏️ Elegir punto de partida</button>
+    <button id="btn-refresh">🔄 Refrescar</button>
   </header>
 
   <div id="map"></div>
 
   <div class="info-panel">
-    <button id="btn-refresh">🔄 Refrescar</button>
+    <h3>Solicitudes cercanas</h3>
     <div id="sol-list" class="sol-list"></div>
   </div>
 
