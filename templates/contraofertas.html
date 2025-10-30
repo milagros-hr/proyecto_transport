@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Mis Contraofertas</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #666;
+        }
+        
+        .solicitud-grupo {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-left: 5px solid #ffd93d;
+        }
+        
+        .solicitud-info {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px dashed #e0e0e0;
+        }
+        
+        .ruta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .ruta i {
+            color: #ff9800;
+        }
+        
+        .detalle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .detalle-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .detalle-item i {
+            color: #ff9800;
+            width: 20px;
+        }
+        
+        .precio-estandar {
+            display: inline-block;
+            background: rgba(255, 217, 61, 0.2);
+            color: #333;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-top: 1rem;
+        }
+        
+        .contraofertas-titulo {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .contraoferta-card {
+            background: linear-gradient(135deg, rgba(255, 217, 61, 0.1), rgba(255, 152, 0, 0.1));
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 2px solid rgba(255, 217, 61, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .contraoferta-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 217, 61, 0.3);
+        }
+        
+        .conductor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .conductor-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .conductor-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #333, #555);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffd93d;
+            font-size: 1.5rem;
+        }
+        
+        .conductor-datos h3 {
+            color: #333;
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .vehiculo {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .precio-oferta {
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(255, 217, 61, 0.4);
+        }
+        
+        .mensaje-conductor {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            color: #666;
+            font-style: italic;
+            border-left: 3px solid #ff9800;
+        }
+        
+        .acciones {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-aceptar {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+        }
+        
+        .btn-aceptar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .btn-rechazar {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .btn-rechazar:hover {
+            background: #d0d0d0;
+        }
+        
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(45deg, #333, #555);
+            color: #ffd93d;
+            border: 2px solid #ffd93d;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            margin-top: 2rem;
+        }
+        
+        .btn-back:hover {
+            background: #ffd93d;
+            color: #333;
+            transform: translateY(-2px);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #ddd;
+        }
+        
+        .comparacion-precios {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 0.8rem;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .precio-original {
+            text-decoration: line-through;
+            color: #999;
+        }
+        
+        .ahorro {
+            background: #4caf50;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        
+        .diferencia-negativa {
+            background: #ff9800;
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .container { padding: 2rem; }
+            .conductor-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .acciones { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-handshake"></i> Contraofertas Recibidas</h1>
+            <p>Los conductores han respondido a tus solicitudes</p>
+        </div>
+        
+        <div id="listaContraofertas">
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Cargando contraofertas...</p>
+            </div>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/dashboard" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // =========================================
+        // CARGAR CONTRAOFERTAS
+        // =========================================
+        document.addEventListener('DOMContentLoaded', cargarContraofertas);
+        
+        async function cargarContraofertas() {
+            try {
+                const res = await fetch('/api/pasajero/contraofertas', {
+                    credentials: 'same-origin'
+                });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                
+                console.log('📨 Contraofertas:', data);
+                
+                renderizarContraofertas(data);
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                document.getElementById('listaContraofertas').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Error al cargar las contraofertas</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // =========================================
+        // RENDERIZAR
+        // =========================================
+        function renderizarContraofertas(grupos) {
+            const container = document.getElementById('listaContraofertas');
+            
+            if (!grupos || grupos.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No tienes contraofertas pendientes</p>
+                        <p style="font-size: 0.9rem; margin-top: 1rem;">
+                            Las contraofertas aparecerán aquí cuando los conductores<br>
+                            respondan a tus solicitudes de viaje.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = grupos.map(grupo => {
+                const sol = grupo.solicitud;
+                const contraofertas = grupo.contraofertas;
+                
+                return `
+                    <div class="solicitud-grupo">
+                        <div class="solicitud-info">
+                            <div class="ruta">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${sol.origen.nombre}
+                                <i class="fas fa-arrow-right"></i>
+                                <i class="fas fa-flag-checkered"></i>
+                                ${sol.destino.nombre}
+                            </div>
+                            
+                            <div class="detalle-grid">
+                                <div class="detalle-item">
+                                    <i class="fas fa-road"></i>
+                                    <span>${sol.distancia.toFixed(1)} km</span>
+                                </div>
+                                <div class="detalle-item">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>${sol.fecha_creacion.split(' ')[0]}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="precio-estandar">
+                                Precio estándar: <strong>S/. ${sol.precio_estandar.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                        
+                        <h3 class="contraofertas-titulo">
+                            <i class="fas fa-users"></i>
+                            ${contraofertas.length} ${contraofertas.length === 1 ? 'Oferta' : 'Ofertas'} de Conductores
+                        </h3>
+                        
+                        ${contraofertas.map(contra => renderizarContraoferta(contra, sol.precio_estandar)).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderizarContraoferta(contra, precioEstandar) {
+            const diferencia = precioEstandar - contra.precio_ofrecido;
+            const esMasBarato = diferencia > 0;
+            const porcentaje = Math.abs((diferencia / precioEstandar) * 100).toFixed(0);
+            
+            return `
+                <div class="contraoferta-card">
+                    <div class="conductor-header">
+                        <div class="conductor-info">
+                            <div class="conductor-avatar">
+                                <i class="fas fa-car"></i>
+                            </div>
+                            <div class="conductor-datos">
+                                <h3>${contra.conductor_nombre || 'Conductor'}</h3>
+                                <div class="vehiculo">
+                                    <i class="fas fa-car-side"></i>
+                                    ${contra.conductor_vehiculo || 'Vehículo'}
+                                </div>
+                                <div class="vehiculo">
+                                    <i class="fas fa-star"></i>
+                                    ${contra.conductor_calificacion || '4.5'} ★
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="precio-oferta">
+                            S/. ${contra.precio_ofrecido.toFixed(2)}
+                        </div>
+                    </div>
+                    
+                    ${contra.mensaje ? `
+                        <div class="mensaje-conductor">
+                            <i class="fas fa-comment-alt"></i>
+                            "${contra.mensaje}"
+                        </div>
+                    ` : ''}
+                    
+                    <div class="comparacion-precios">
+                        <span>Precio estándar: <span class="precio-original">S/. ${precioEstandar.toFixed(2)}</span></span>
+                        ${esMasBarato ? `
+                            <span class="ahorro">
+                                <i class="fas fa-arrow-down"></i>
+                                Ahorras S/. ${diferencia.toFixed(2)} (${porcentaje}%)
+                            </span>
+                        ` : `
+                            <span class="ahorro diferencia-negativa">
+                                <i class="fas fa-arrow-up"></i>
+                                +S/. ${Math.abs(diferencia).toFixed(2)} (${porcentaje}%)
+                            </span>
+                        `}
+                    </div>
+                    
+                    <div class="acciones">
+                        <button class="btn btn-rechazar" onclick="rechazarContraoferta(${contra.id})">
+                            <i class="fas fa-times"></i> Rechazar
+                        </button>
+                        <button class="btn btn-aceptar" onclick="aceptarContraoferta(${contra.id})">
+                            <i class="fas fa-check"></i> Aceptar Oferta
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // =========================================
+        // ACEPTAR CONTRAOFERTA
+        // =========================================
+        async function aceptarContraoferta(contraofertaId) {
+            if (!confirm('¿Aceptar esta contraoferta? Se iniciará el viaje con este conductor.')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/pasajero/aceptar-contraoferta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ contraoferta_id: contraofertaId })
+                });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                
+                if (data.ok) {
+                    alert('✅ ¡Viaje confirmado! El conductor recibirá una notificación.');
+                    // Recargar página o redirigir a mis viajes
+                    window.location.href = '/mis-viajes';
+                } else {
+                    alert('❌ ' + (data.error || 'Error al aceptar'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error al aceptar la contraoferta');
+            }
+        }
+        
+        // =========================================
+        // RECHAZAR CONTRAOFERTA
+        // =========================================
+        async function rechazarContraoferta(contraofertaId) {
+            if (!confirm('¿Rechazar esta contraoferta? El conductor será notificado.')) {
+                return;
+            }
+            
+            // Aquí podrías agregar un endpoint para marcar como rechazada
+            // Por ahora solo recargamos
+            alert('Contraoferta rechazada');
+            cargarContraofertas();
+        }
+    </script>
+</body>
+</html>

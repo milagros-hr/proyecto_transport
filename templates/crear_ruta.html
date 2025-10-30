@@ -1,36 +1,732 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Crear Ruta - TransPort</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#fff8f0; }
-    header { padding:12px; background:#ffcc33; text-align:center; }
-    #map { height:72vh; }
-    .info-panel { padding:8px; }
-    .sol-list { max-height:18vh; overflow:auto; border-top:1px solid #eee; }
-    .sol-item { padding:6px; border-bottom:1px solid #f0f0f0; }
-    button { margin:3px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Crear Ruta</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
+            color: #333;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+        
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            overflow-y: auto;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            padding: 2rem;
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .controls {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #333, #555);
+            color: #ffd93d;
+            border: 2px solid #ffd93d;
+        }
+        
+        .btn-primary:hover {
+            background: #ffd93d;
+            color: #333;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #45a049;
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .solicitudes {
+            padding: 0 1.5rem 1.5rem;
+        }
+        
+        .solicitud-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-left: 4px solid #ffd93d;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .solicitud-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+        
+        .solicitud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+        
+        .pasajero-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+        }
+        
+        .precio-tag {
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .ruta-info {
+            display: grid;
+            gap: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .info-row i {
+            color: #ff9800;
+            width: 18px;
+        }
+        
+        .distancia-badge {
+            background: rgba(255, 152, 0, 0.1);
+            color: #ff9800;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .acciones {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .btn-sm {
+            padding: 0.6rem;
+            font-size: 0.85rem;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Modal para contraoferta */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #ffd93d;
+        }
+        
+        .precio-comparacion {
+            background: rgba(255, 217, 61, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .precio-original {
+            text-decoration: line-through;
+            color: #999;
+            margin-right: 0.5rem;
+        }
+        
+        .btn-back {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            
+            .sidebar {
+                max-height: 50vh;
+            }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h2>🛣️ Crear Ruta — Modo Chofer</h2>
-    <button id="btn-ubicacion">📍 Usar mi ubicación</button>
-    <button id="btn-partida">✏️ Elegir punto de partida</button>
-    <button id="btn-refresh">🔄 Refrescar</button>
-  </header>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="header">
+                <h1><i class="fas fa-route"></i> Crear Ruta</h1>
+                <p class="subtitle">Solicitudes disponibles cerca de ti</p>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-primary" id="btnUbicacion">
+                    <i class="fas fa-location-crosshairs"></i>
+                    Usar mi ubicación
+                </button>
+                <button class="btn btn-primary" id="btnRefrescar">
+                    <i class="fas fa-sync-alt"></i>
+                    Actualizar solicitudes
+                </button>
+                <a href="/dashboard" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver al Dashboard
+                </a>
+            </div>
+            
+            <div class="solicitudes" id="listaSolicitudes">
+                <div class="empty-state">
+                    <i class="fas fa-search-location"></i>
+                    <p>Activar ubicación para ver solicitudes cercanas</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mapa -->
+        <div style="position: relative;">
+            <div id="map"></div>
+        </div>
+    </div>
+    
+    <!-- Modal para contraoferta -->
+    <div class="modal" id="modalContraoferta">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-hand-holding-usd"></i> Hacer Contraoferta</h2>
+                <p style="color: #666;">Propón un precio diferente al pasajero</p>
+            </div>
+            
+            <div class="precio-comparacion">
+                <p>Precio estándar: <span class="precio-original" id="precioOriginal">S/. 0.00</span></p>
+                <p style="font-size: 0.9rem; color: #666;">Tu oferta aparecerá en la app del pasajero</p>
+            </div>
+            
+            <form id="formContraoferta">
+                <div class="form-group">
+                    <label for="precioOfrecido">Tu precio (S/.)</label>
+                    <input type="number" 
+                           class="form-input" 
+                           id="precioOfrecido" 
+                           step="0.5" 
+                           min="3" 
+                           placeholder="15.00" 
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="mensaje">Mensaje opcional</label>
+                    <textarea class="form-input" 
+                              id="mensaje" 
+                              rows="3" 
+                              placeholder="Ej: Tengo experiencia en esta ruta..."></textarea>
+                </div>
+                
+                <div class="acciones">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="cerrarModal()">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-  <div id="map"></div>
-
-  <div class="info-panel">
-    <h3>Solicitudes cercanas</h3>
-    <div id="sol-list" class="sol-list"></div>
-  </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="{{ url_for('static', filename='js/crear_ruta.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // =========================================
+        // ESTADO GLOBAL
+        // =========================================
+        let map;
+        let conductorMarker;
+        let solicitudMarkers = [];
+        let ubicacionConductor = null;
+        let solicitudSeleccionada = null;
+        let solicitudes = [];
+        
+        const carIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3097/3097179.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        
+        const passengerIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/747/747376.png',
+            iconSize: [35, 35],
+            iconAnchor: [17, 17]
+        });
+        
+        // =========================================
+        // INICIALIZACIÓN
+        // =========================================
+        document.addEventListener('DOMContentLoaded', init);
+        
+        function init() {
+            initMap();
+            bindEvents();
+            console.log('🚗 Vista conductor inicializada');
+        }
+        
+        function initMap() {
+            const limaCenter = [-12.0464, -77.0428];
+            map = L.map('map').setView(limaCenter, 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            console.log('🗺️ Mapa inicializado');
+        }
+        
+        function bindEvents() {
+            document.getElementById('btnUbicacion').addEventListener('click', obtenerUbicacion);
+            document.getElementById('btnRefrescar').addEventListener('click', cargarSolicitudes);
+            document.getElementById('formContraoferta').addEventListener('submit', enviarContraoferta);
+        }
+        
+        // =========================================
+        // GEOLOCALIZACIÓN
+        // =========================================
+        function obtenerUbicacion() {
+            const btn = document.getElementById('btnUbicacion');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo...';
+            
+            if (!navigator.geolocation) {
+                alert('Tu navegador no soporta geolocalización');
+                resetButton(btn);
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    ubicacionConductor = { lat, lng };
+                    
+                    // Actualizar marcador del conductor
+                    if (conductorMarker) {
+                        conductorMarker.setLatLng([lat, lng]);
+                    } else {
+                        conductorMarker = L.marker([lat, lng], { icon: carIcon })
+                            .addTo(map)
+                            .bindPopup('🚗 Tu ubicación')
+                            .openPopup();
+                    }
+                    
+                    map.setView([lat, lng], 14);
+                    
+                    // Cargar solicitudes cercanas
+                    cargarSolicitudes();
+                    
+                    btn.innerHTML = '<i class="fas fa-check"></i> Ubicación obtenida';
+                    setTimeout(() => resetButton(btn), 2000);
+                },
+                (error) => {
+                    alert('No se pudo obtener tu ubicación');
+                    console.error(error);
+                    resetButton(btn);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+        
+        function resetButton(btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Usar mi ubicación';
+        }
+        
+        // =========================================
+        // CARGAR SOLICITUDES
+        // =========================================
+        async function cargarSolicitudes() {
+            if (!ubicacionConductor) {
+                alert('Primero activa tu ubicación');
+                return;
+            }
+            
+            const btn = document.getElementById('btnRefrescar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+            
+            try {
+                const url = `/api/conductor/solicitudes-cercanas?lat=${ubicacionConductor.lat}&lng=${ubicacionConductor.lng}&radio=10`;
+                const res = await fetch(url, { credentials: 'same-origin' });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                solicitudes = await res.json();
+                
+                console.log(`📍 ${solicitudes.length} solicitudes encontradas`);
+                
+                renderizarSolicitudes();
+                dibujarMarcadores();
+                
+                btn.innerHTML = '<i class="fas fa-check"></i> Actualizado';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar solicitudes';
+                    btn.disabled = false;
+                }, 1500);
+                
+            } catch (error) {
+                console.error('❌ Error cargando solicitudes:', error);
+                alert('Error al cargar solicitudes');
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar solicitudes';
+                btn.disabled = false;
+            }
+        }
+        
+        // =========================================
+        // RENDERIZAR LISTA
+        // =========================================
+        function renderizarSolicitudes() {
+            const container = document.getElementById('listaSolicitudes');
+            
+            if (solicitudes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No hay solicitudes disponibles en tu área</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = solicitudes.map(sol => {
+                const distConductor = sol.distancia_conductor || 0;
+                const tiempoEstimado = Math.round(sol.distancia * 3); // Aproximado: 3 min por km
+                
+                return `
+                    <div class="solicitud-card" onclick="verDetalles(${sol.id})">
+                        <div class="solicitud-header">
+                            <div class="pasajero-info">
+                                <i class="fas fa-user-circle"></i>
+                                ${sol.pasajero_nombre || 'Pasajero'}
+                            </div>
+                            <div class="precio-tag">S/. ${sol.precio_estandar.toFixed(2)}</div>
+                        </div>
+                        
+                        <div class="ruta-info">
+                            <div class="info-row">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span><strong>Origen:</strong> ${sol.origen.nombre}</span>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-flag-checkered"></i>
+                                <span><strong>Destino:</strong> ${sol.destino.nombre}</span>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-road"></i>
+                                <span>${sol.distancia.toFixed(1)} km • ~${tiempoEstimado} min</span>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-location-arrow"></i>
+                                <span class="distancia-badge">A ${distConductor.toFixed(1)} km de ti</span>
+                            </div>
+                        </div>
+                        
+                        <div class="acciones">
+                            <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); aceptarDirecto(${sol.id})">
+                                <i class="fas fa-check"></i> Aceptar
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); abrirContraoferta(${sol.id})">
+                                <i class="fas fa-hand-holding-usd"></i> Ofertar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // =========================================
+        // DIBUJAR MARCADORES EN MAPA
+        // =========================================
+        function dibujarMarcadores() {
+            // Limpiar marcadores anteriores
+            solicitudMarkers.forEach(m => map.removeLayer(m));
+            solicitudMarkers = [];
+            
+            solicitudes.forEach(sol => {
+                const origen = sol.origen;
+                if (origen && origen.lat && origen.lng) {
+                    const marker = L.marker([origen.lat, origen.lng], { icon: passengerIcon })
+                        .addTo(map)
+                        .bindPopup(`
+                            <strong>${sol.pasajero_nombre || 'Pasajero'}</strong><br>
+                            Destino: ${sol.destino.nombre}<br>
+                            <strong>S/. ${sol.precio_estandar.toFixed(2)}</strong>
+                        `);
+                    
+                    marker.on('click', () => verDetalles(sol.id));
+                    solicitudMarkers.push(marker);
+                }
+            });
+            
+            // Ajustar vista para mostrar todos los marcadores
+            if (solicitudMarkers.length > 0) {
+                const group = L.featureGroup([conductorMarker, ...solicitudMarkers]);
+                map.fitBounds(group.getBounds(), { padding: [50, 50] });
+            }
+        }
+        
+        // =========================================
+        // VER DETALLES
+        // =========================================
+        function verDetalles(solicitudId) {
+            const sol = solicitudes.find(s => s.id === solicitudId);
+            if (!sol) return;
+            
+            // Centrar mapa en el origen
+            if (sol.origen && sol.origen.lat && sol.origen.lng) {
+                map.setView([sol.origen.lat, sol.origen.lng], 15);
+            }
+            
+            console.log('📋 Detalles solicitud:', sol);
+        }
+        
+        // =========================================
+        // ACEPTAR DIRECTAMENTE
+        // =========================================
+        async function aceptarDirecto(solicitudId) {
+            if (!confirm('¿Aceptar esta solicitud con el precio estándar?')) return;
+            
+            try {
+                const res = await fetch('/api/conductor/aceptar-solicitud', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ solicitud_id: solicitudId })
+                });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                
+                if (data.ok) {
+                    alert('✅ ¡Solicitud aceptada! El pasajero recibirá una notificación.');
+                    cargarSolicitudes(); // Recargar lista
+                } else {
+                    alert('❌ ' + (data.error || 'Error al aceptar'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error al aceptar la solicitud');
+            }
+        }
+        
+        // =========================================
+        // CONTRAOFERTA
+        // =========================================
+        function abrirContraoferta(solicitudId) {
+            const sol = solicitudes.find(s => s.id === solicitudId);
+            if (!sol) return;
+            
+            solicitudSeleccionada = sol;
+            
+            document.getElementById('precioOriginal').textContent = `S/. ${sol.precio_estandar.toFixed(2)}`;
+            document.getElementById('precioOfrecido').value = sol.precio_estandar.toFixed(2);
+            document.getElementById('mensaje').value = '';
+            
+            document.getElementById('modalContraoferta').classList.add('active');
+        }
+        
+        function cerrarModal() {
+            document.getElementById('modalContraoferta').classList.remove('active');
+            solicitudSeleccionada = null;
+        }
+        
+        async function enviarContraoferta(e) {
+            e.preventDefault();
+            
+            if (!solicitudSeleccionada) return;
+            
+            const precioOfrecido = parseFloat(document.getElementById('precioOfrecido').value);
+            const mensaje = document.getElementById('mensaje').value.trim();
+            
+            if (precioOfrecido <= 0) {
+                alert('El precio debe ser mayor a 0');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/conductor/contraoferta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        solicitud_id: solicitudSeleccionada.id,
+                        precio_ofrecido: precioOfrecido,
+                        mensaje: mensaje
+                    })
+                });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                
+                if (data.ok) {
+                    alert('✅ ¡Contraoferta enviada! El pasajero la verá en su app.');
+                    cerrarModal();
+                    cargarSolicitudes();
+                } else {
+                    alert('❌ ' + (data.error || 'Error al enviar'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error al enviar la contraoferta');
+            }
+        }
+        
+        // Click fuera del modal para cerrar
+        document.getElementById('modalContraoferta').addEventListener('click', (e) => {
+            if (e.target.id === 'modalContraoferta') {
+                cerrarModal();
+            }
+        });
+    </script>
 </body>
 </html>

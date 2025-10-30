@@ -905,6 +905,510 @@ function showStatus(type, message) {
     setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
   }
 }
+// Agregar estas funciones al archivo static/js/buscar_viaje.js
+
+// Después de reservar un viaje, iniciar verificación de ofertas
+async function reservarViaje(conductorId, resultIdx) {
+    const resultados = document.querySelectorAll('.result-item');
+    if (resultIdx >= resultados.length) return;
+
+    const origenNode = document.getElementById('origen').dataset.node || '';
+    const destinoNode = document.getElementById('destino').dataset.node || '';
+
+    const btn = resultados[resultIdx].querySelector('.btn-select');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reservando...';
+
+    try {
+        const payload = {
+            conductor_id: conductorId,
+            origen: origenNode,
+            destino: destinoNode,
+            ruta: [], 
+            distancia: 0
+        };
+
+        const res = await fetch(API.solicitar, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data.ok) {
+            showStatus('success', '✅ Solicitud enviada. Los conductores cercanos la verán y podrán hacer ofertas.');
+            
+            // Iniciar verificación de ofertas cada 5 segundos
+            iniciarVerificacionOfertas();
+            
+            // Limpiar formulario después de 2 segundos
+            setTimeout(() => { 
+                document.getElementById('results').style.display = 'none';
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Error desconocido');
+        }
+    } catch (err) {
+        console.error('❌ Error al reservar:', err);
+        showStatus('error', 'Error al enviar solicitud. Intenta de nuevo.');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }
+}
+
+// Variable para el intervalo de verificación
+let verificacionInterval = null;
+
+function iniciarVerificacionOfertas() {
+    // Limpiar intervalo previo si existe
+    if (verificacionInterval) {
+        clearInterval(verificacionInterval);
+    }
+    
+    // Verificar inmediatamente
+    verificarOfertas();
+    
+    // Verificar cada 5 segundos
+    verificacionInterval = setInterval(verificarOfertas, 5000);
+}
+
+async function verificarOfertas() {
+    try {
+        const res = await fetch('/api/pasajero/ofertas-pendientes', {
+            credentials: 'same-origin'
+        });
+        
+        if (!res.ok) return;
+        
+        const ofertas = await res.json();
+        
+        if (ofertas && ofertas.length > 0) {
+            // Detener la verificación
+            if (verificacionInterval) {
+                clearInterval(verificacionInterval);
+                verificacionInterval = null;
+            }
+            
+            // Mostrar las ofertas al pasajero
+            mostrarModalOfertas(ofertas);
+        }
+    } catch (error) {
+        console.error('Error al verificar ofertas:', error);
+    }
+}
+
+function mostrarModalOfertas(ofertas) {
+    // Crear modal dinámico
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    const contenido = document.createElement('div');
+    contenido.style.cssText = `
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    `;
+    
+    contenido.innerHTML = `
+        <h2 style="color: #333; margin-bottom: 1.5rem; text-align: center;">
+            <i class="fas fa-bell"></i> ¡Tienes ${ofertas.length} oferta${ofertas.length > 1 ? 's' : ''}!
+        </h2>
+        ${ofertas.map((oferta, idx) => `
+            <div style="background: rgba(255, 217, 61, 0.1); border-radius: 15px; padding: 1.5rem; margin-bottom: 1rem; border-left: 5px solid #ffd93d;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <strong style="font-size: 1.1rem;">${oferta.conductor_nombre || 'Conductor'}</strong>
+                        <div style="color: #666; font-size: 0.9rem;">${oferta.conductor_vehiculo || 'Vehículo'}</div>
+                        <div style="color: #666; font-size: 0.9rem;"><i class="fas fa-phone"></i> ${oferta.conductor_telefono || 'N/A'}</div>
+                    </div>
+                    <div style="background: linear-gradient(45deg, #4caf50, #45a049); color: white; padding: 0.8rem 1.2rem; border-radius: 25px; font-weight: 700; font-size: 1.2rem;">
+                        S/ ${oferta.precio_conductor || oferta.precio_sugerido || '0'}
+                    </div>
+                </div>
+                
+                <div style="margin: 1rem 0;">
+                    <div style="color: #666; margin-bottom: 0.5rem;">
+                        <i class="fas fa-map-marker-alt" style="color: #ff9800;"></i>
+                        <strong>Origen:</strong> ${oferta.origen || 'N/A'}
+                    </div>
+                    <div style="color: #666;">
+                        <i class="fas fa-flag-checkered" style="color: #ff9800;"></i>
+                        <strong>Destino:</strong> ${oferta.destino || 'N/A'}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.8rem;">
+                    <button onclick="confirmarOferta(${oferta.id})" style="flex: 1; background: linear-gradient(45deg, #4caf50, #45a049); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 700; cursor: pointer;">
+                        <i class="fas fa-check"></i> Aceptar
+                    </button>
+                    <button onclick="rechazarOferta(${oferta.id})" style="flex: 1; background: linear-gradient(45deg, #f44336, #d32f2f); color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 700; cursor: pointer;">
+                        <i class="fas fa-times"></i> Rechazar
+                    </button>
+                </div>
+            </div>
+        `).join('')}
+    `;
+    
+    modal.appendChild(contenido);
+    document.body.appendChild(modal);
+    
+    // Guardar referencia para poder cerrarlo
+    window.modalOfertas = modal;
+}
+
+async function confirmarOferta(viajeId) {
+    try {
+        const res = await fetch('/api/pasajero/confirmar-oferta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ viaje_id: viajeId })
+        });
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        
+        if (data.ok) {
+            alert('✅ ¡Oferta confirmada! El conductor iniciará tu viaje pronto.');
+            
+            // Cerrar modal
+            if (window.modalOfertas) {
+                document.body.removeChild(window.modalOfertas);
+                window.modalOfertas = null;
+            }
+            
+            // Resetear formulario
+            resetForm();
+            
+            // Redirigir a mis viajes después de 2 segundos
+            setTimeout(() => {
+                window.location.href = '/mis-viajes';
+            }, 2000);
+        } else {
+            alert('❌ ' + (data.error || 'Error al confirmar oferta'));
+        }
+    } catch (error) {
+        console.error('❌ Error:', error);
+        alert('Error al confirmar la oferta. Intenta de nuevo.');
+    }
+}
+
+async function rechazarOferta(viajeId) {
+    if (!confirm('¿Estás seguro de rechazar esta oferta?')) return;
+    
+    try {
+        const res = await fetch('/api/pasajero/rechazar-oferta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ viaje_id: viajeId })
+        });
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        
+        if (data.ok) {
+            alert('Oferta rechazada.');
+            
+            // Cerrar modal
+            if (window.modalOfertas) {
+                document.body.removeChild(window.modalOfertas);
+                window.modalOfertas = null;
+            }
+            
+            // Volver a verificar si hay más ofertas
+            setTimeout(() => {
+                verificarOfertas();
+            }, 1000);
+        } else {
+            alert('❌ ' + (data.error || 'Error al rechazar oferta'));
+        }
+    } catch (error) {
+        console.error('❌ Error:', error);
+        alert('Error al rechazar la oferta. Intenta de nuevo.');
+    }
+} 
+
+// Agregar/modificar estas funciones en buscar_viaje.js
+
+// =========================================
+// BUSCAR VIAJES (MODIFICADO)
+// =========================================
+
+async function buscarViajes(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const origenInput = document.getElementById('origen');
+    const destinoInput = document.getElementById('destino');
+    const pasajerosInput = document.getElementById('pasajeros');
+
+    let origenNode = origenInput ? (origenInput.dataset.node || '').toString().trim() : '';
+    let destinoNode = destinoInput ? (destinoInput.dataset.node || '').toString().trim() : '';
+    const pasajeros = pasajerosInput ? pasajerosInput.value : '';
+
+    // Validaciones y asignaciones de nodos (igual que antes)
+    if (!origenNode && origenInput && origenInput.value) {
+        const found = findNodeByName(origenInput.value);
+        if (found) {
+            origenNode = found.nombre;
+            origenInput.dataset.node = found.nombre;
+        }
+    }
+    
+    if (!destinoNode && destinoInput && destinoInput.value) {
+        const found = findNodeByName(destinoInput.value);
+        if (found) {
+            destinoNode = found.nombre;
+            destinoInput.dataset.node = found.nombre;
+        }
+    }
+
+    if (!origenNode && state.origen && state.origen.lat != null) {
+        const snap = snapToNearestNode(state.origen.lat, state.origen.lng);
+        if (snap) {
+            origenNode = snap.nombre;
+            document.getElementById('origen').dataset.node = snap.nombre;
+        }
+    }
+    
+    if (!destinoNode && state.destino && state.destino.lat != null) {
+        const snap = snapToNearestNode(state.destino.lat, state.destino.lng);
+        if (snap) {
+            destinoNode = snap.nombre;
+            document.getElementById('destino').dataset.node = snap.nombre;
+        }
+    }
+
+    if (!origenNode || !destinoNode || !pasajeros) {
+        showStatus('error', 'Completa origen, destino y número de pasajeros.');
+        return;
+    }
+
+    try {
+        const searchBtn = document.getElementById('searchBtn');
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+
+        const url = new URL(API.buscar, window.location.origin);
+        url.searchParams.set('origen', origenNode);
+        url.searchParams.set('destino', destinoNode);
+        url.searchParams.set('pasajeros', pasajeros);
+
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Dibujar la ruta en el mapa usando OSRM
+        const origenCoords = getLatLngFor('origen');
+        const destinoCoords = getLatLngFor('destino');
+        
+        if (origenCoords && destinoCoords) {
+            await drawRoadRouteWithOSRM(origenCoords, destinoCoords);
+        }
+
+        // Mostrar resultado con botón de solicitar
+        displayResultadoSolicitud(data);
+
+    } catch (err) {
+        console.error('❌ Error en búsqueda:', err);
+        showStatus('error', 'Error al buscar viajes. Intenta de nuevo.');
+        document.getElementById('results').style.display = 'none';
+    } finally {
+        const searchBtn = document.getElementById('searchBtn');
+        if (searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = '<i class="fas fa-search"></i> Buscar Viajes Disponibles';
+        }
+    }
+}
+
+// =========================================
+// MOSTRAR RESULTADO (NUEVO)
+// =========================================
+
+function displayResultadoSolicitud(data) {
+    const resultsDiv = document.getElementById('results');
+    const resultsList = document.getElementById('resultsList');
+
+    if (!data || data.error) {
+        resultsList.innerHTML = `
+            <div style="padding: 1rem; text-align: center; color: #666;">
+                <i class="fas fa-info-circle"></i>
+                ${data.mensaje || 'No se pudo calcular la ruta'}
+            </div>`;
+        resultsDiv.style.display = 'block';
+        return;
+    }
+
+    const { distancia, precio_estimado, tiempo_estimado, ruta } = data;
+
+    resultsList.innerHTML = `
+        <div style="background: white; border-radius: 15px; padding: 2rem; margin-bottom: 1rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="font-size: 3rem; color: #ffd93d; margin-bottom: 0.5rem;">
+                    <i class="fas fa-route"></i>
+                </div>
+                <h2 style="color: #333; margin-bottom: 0.5rem;">Ruta Calculada</h2>
+                <p style="color: #666;">Tu viaje está listo para ser solicitado</p>
+            </div>
+
+            <div style="display: grid; gap: 1rem; margin-bottom: 2rem;">
+                <div style="background: rgba(255, 217, 61, 0.1); padding: 1rem; border-radius: 10px; display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-road" style="font-size: 1.5rem; color: #ff9800;"></i>
+                    <div>
+                        <div style="color: #666; font-size: 0.9rem;">Distancia</div>
+                        <div style="font-weight: 700; font-size: 1.2rem; color: #333;">${distancia.toFixed(1)} km</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(255, 217, 61, 0.1); padding: 1rem; border-radius: 10px; display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-clock" style="font-size: 1.5rem; color: #ff9800;"></i>
+                    <div>
+                        <div style="color: #666; font-size: 0.9rem;">Tiempo estimado</div>
+                        <div style="font-weight: 700; font-size: 1.2rem; color: #333;">${tiempo_estimado} minutos</div>
+                    </div>
+                </div>
+
+                <div style="background: linear-gradient(45deg, #ffd93d, #ff9800); padding: 1.5rem; border-radius: 10px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <i class="fas fa-dollar-sign" style="font-size: 1.5rem; color: #333;"></i>
+                        <div>
+                            <div style="color: #333; font-size: 0.9rem; opacity: 0.8;">Precio estimado</div>
+                            <div style="font-weight: 700; font-size: 1.8rem; color: #333;">S/. ${precio_estimado.toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div style="background: rgba(255, 152, 0, 0.1); padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem;">
+                <p style="color: #666; font-size: 0.9rem; text-align: center;">
+                    <i class="fas fa-info-circle"></i>
+                    Al solicitar, los conductores cercanos verán tu viaje y podrán hacer ofertas
+                </p>
+            </div>
+
+            <button onclick="crearSolicitud(${distancia}, ${precio_estimado})" 
+                    style="width: 100%; padding: 1.2rem; background: linear-gradient(45deg, #4caf50, #45a049); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.3s ease;"
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(76, 175, 80, 0.4)';"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                <i class="fas fa-paper-plane"></i>
+                Solicitar Viaje
+            </button>
+        </div>
+    `;
+
+    resultsDiv.style.display = 'block';
+    console.log('✅ Resultado mostrado');
+}
+
+// =========================================
+// CREAR SOLICITUD (NUEVO)
+// =========================================
+
+async function crearSolicitud(distancia, precioEstimado) {
+    const origenInput = document.getElementById('origen');
+    const destinoInput = document.getElementById('destino');
+
+    const origenNode = origenInput.dataset.node || '';
+    const destinoNode = destinoInput.dataset.node || '';
+
+    if (!origenNode || !destinoNode) {
+        alert('❌ Error: No se pudo identificar origen o destino');
+        return;
+    }
+
+    // Obtener coordenadas
+    const origenCoords = state.origen;
+    const destinoCoords = state.destino;
+
+    if (!origenCoords.lat || !destinoCoords.lat) {
+        alert('❌ Error: Faltan coordenadas');
+        return;
+    }
+
+    try {
+        const payload = {
+            origen: {
+                nombre: origenNode,
+                lat: origenCoords.lat,
+                lng: origenCoords.lng
+            },
+            destino: {
+                nombre: destinoNode,
+                lat: destinoCoords.lat,
+                lng: destinoCoords.lng
+            },
+            distancia: distancia
+        };
+
+        const res = await fetch(API.solicitar, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data.ok) {
+            // Mostrar mensaje de éxito
+            const resultsList = document.getElementById('resultsList');
+            resultsList.innerHTML = `
+                <div style="text-align: center; padding: 3rem;">
+                    <div style="font-size: 4rem; color: #4caf50; margin-bottom: 1rem;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2 style="color: #333; margin-bottom: 1rem;">¡Solicitud Creada!</h2>
+                    <p style="color: #666; margin-bottom: 2rem;">
+                        Los conductores cercanos pueden ver tu viaje y enviar ofertas.<br>
+                        Recibirás notificaciones cuando lleguen contraofertas.
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <a href="/contraofertas" style="padding: 1rem 2rem; background: linear-gradient(45deg, #ffd93d, #ff9800); color: #333; border-radius: 12px; text-decoration: none; font-weight: 700;">
+                            <i class="fas fa-handshake"></i> Ver Contraofertas
+                        </a>
+                        <button onclick="resetForm()" style="padding: 1rem 2rem; background: #333; color: #ffd93d; border: 2px solid #ffd93d; border-radius: 12px; font-weight: 700; cursor: pointer;">
+                            <i class="fas fa-plus"></i> Nueva Solicitud
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            throw new Error(data.error || 'Error desconocido');
+        }
+
+    } catch (err) {
+        console.error('❌ Error al crear solicitud:', err);
+        alert('Error al crear la solicitud. Intenta de nuevo.');
+    }
+}
+
+
+
+
 
 function resetForm() {
   // Inputs visibles

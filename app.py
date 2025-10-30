@@ -9,6 +9,15 @@ from servicios.usuarios_repo import (
     get_viajes_por_pasajero,
     actualizar_usuario
 )
+from servicios.solicitudes import (
+    encolar_solicitud, 
+    listar_solicitudes, 
+    aceptar_solicitud_por_id,
+    generar_solicitud_id
+)
+
+
+
 
 # --- NODOS DEL GRAFO (read-only) ---
 FALLBACK_NODES = [
@@ -278,13 +287,28 @@ def repetir_viaje():
     if not origen or not destino:
         return redirect(url_for('mis_viajes'))
     return redirect(url_for('buscar_viaje', origen=origen, destino=destino))
+
+
 @app.route("/crear-ruta")
 @requiere_login
 def crear_ruta():
+    """Vista principal del conductor para gestionar solicitudes y viajes"""
     if session.get('user_type') != 'conductor':
         flash("❌ Solo los conductores pueden crear rutas", "error")
         return redirect(url_for('dashboard'))
-    return render_template("crear_ruta.html")
+    
+    tipo = session['user_type']
+    conductor = get_user_by_id_and_tipo(session['user_id'], tipo)
+    
+    if not conductor:
+        session.clear()
+        flash("❌ Sesión inválida", "error")
+        return redirect(url_for('login'))
+    
+    return render_template('crear_ruta.html', conductor=conductor)
+
+
+
 
 
 
@@ -341,55 +365,7 @@ def inject_stats():
 
 # ---------------- API ----------------
 # --- BUSCAR VIAJES DISPONIBLES ---
-@app.get("/api/buscar-viajes")
-def buscar_viajes():
-    try:
-        origen = request.args.get("origen")
-        destino = request.args.get("destino")
-        pasajeros = request.args.get("pasajeros")
 
-        if not origen or not destino:
-            return jsonify({"error": "Faltan parámetros"}), 400
-
-        # Calcular la mejor ruta usando el grafo
-        distancia, ruta = gestor_rutas.calcular_mejor_ruta(origen, destino)
-
-        # Si no existe camino posible entre los nodos
-        if distancia == float("inf") or not ruta:
-            return jsonify({"resultados": [], "distancia": 0})
-
-        # Obtener todos los conductores registrados
-        conductores = usuarios_repo.listar_conductores_disponibles()
-        resultados = []
-
-        # Crear resultados simulados para mostrar en el frontend
-        for c in conductores:
-            # --- Calcular precio ---
-            precio_km = 2.5  # soles por km
-            precio = round(max(5, distancia * precio_km), 2)  # precio mínimo S/5
-
-            resultados.append({
-                "id": c.get("id"),
-                "conductor": c.get("nombre", "Sin nombre"),
-                "vehiculo": f"{c.get('modelo', 'Modelo N/D')} {c.get('color', '')} - {c.get('placa', '')}",
-                "origen": origen,
-                "destino": destino,
-                "tiempo": f"{round(distancia * 3, 1)} min",
-                "asientos": 4,
-                "precio": f"S/ {precio}"
-            })
-
-
-        return jsonify({
-            "distancia": distancia,
-            "ruta": ruta,
-            "resultados": resultados
-        }), 200
-
-    except Exception as e:
-        # Log para ver el error real en consola
-        print("❌ Error en /api/buscar-viajes:", e)
-        return jsonify({"error": str(e)}), 500
 
 
 @app.get("/api/grafo/nodos")
@@ -423,42 +399,418 @@ def api_grafo_nodos():
 @app.post("/api/solicitar")
 @requiere_login
 def api_solicitar():
-    from servicios.solicitudes import encolar_solicitud  # import directo para evitar sombras
-    data = request.get_json(force=True)
-    pasajero_id = session.get("user_id")
-    if not pasajero_id:
-        return jsonify({"error": "No autenticado"}), 401
+    """
+    El pasajero crea una solicitud de viaje
+    Esta queda abierta para que los conductores puedan verla y ofertar
+    """
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        data = request.get_json(force=True)
+        pasajero_id = session.get("user_id")
+        
+        # Normalizar origen y destino
+        origen_raw = data.get("origen") or {}
+        destino_raw = data.get("destino") or {}
+        
+        origen = {
+            "nombre": origen_raw.get("nombre", "Origen"),
+            "lat": float(origen_raw.get("lat", -12.0464)),
+            "lng": float(origen_raw.get("lng", -77.0428))
+        }
+        
+        destino = {
+            "nombre": destino_raw.get("nombre", "Destino"),
+            "lat": float(destino_raw.get("lat", -12.0464)),
+            "lng": float(destino_raw.get("lng", -77.0428))
+        }
+        
+        distancia = float(data.get("distancia", 0.0))
+        
+        # Crear solicitud usando el nuevo sistema
+        from servicios.solicitudes_mejoradas import crear_solicitud_pasajero
+        solicitud = crear_solicitud_pasajero(
+            pasajero_id=pasajero_id,
+            origen=origen,
+            destino=destino,
+            distancia=distancia
+        )
+        
+        if solicitud:
+            flash(f"✅ Solicitud creada. Precio estimado: S/. {solicitud['precio_estandar']:.2f}", "success")
+            return jsonify({
+                "ok": True,
+                "solicitud": solicitud,
+                "mensaje": "Solicitud creada. Los conductores pueden verla y ofertar."
+            }), 200
+        else:
+            return jsonify({"ok": False, "error": "No se pudo crear la solicitud"}), 500
+            
+    except Exception as e:
+        print("❌ Error en /api/solicitar:", e)
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-    # 1) Leer viajes actuales para generar ID
-    viajes_actuales = _leer_json(VIAJES_FILE)
-    nuevo_id = generar_id(viajes_actuales)
+# ============================================
+# ENDPOINT: VER MIS SOLICITUDES ACTIVAS
+# ============================================
 
-    # 2) Normalizar origen/destino (garantiza lat/lng)
-    origen_raw = data.get("origen") or {}
-    destino_raw = data.get("destino") or {}
-    origen = _norm_point(origen_raw)
-    destino = _norm_point(destino_raw)
+@app.get("/api/pasajero/mis-solicitudes")
+@requiere_login
+def api_mis_solicitudes():
+    """
+    Obtiene las solicitudes activas del pasajero actual
+    """
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        pasajero_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import _leer_json, SOLICITUDES_FILE
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        
+        # Filtrar solicitudes del pasajero que estén pendientes
+        mis_solicitudes = [
+            s for s in solicitudes 
+            if s.get('pasajero_id') == pasajero_id 
+            and s.get('estado') == 'pendiente'
+        ]
+        
+        return jsonify(mis_solicitudes), 200
+        
+    except Exception as e:
+        print("❌ Error:", e)
+        return jsonify({"error": str(e)}), 500
 
-    viaje_a_guardar = {
-        "id": nuevo_id,
-        "pasajero_id": pasajero_id,
-        "conductor_id": data.get("conductor_id"),  # None por ahora
-        "origen": origen,
-        "destino": destino,
-        "ruta": data.get("ruta", []),
-        "distancia": float(data.get("distancia", 0.0)),
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "precio": float(data.get("precio", 0)) if str(data.get("precio", "")).strip() != "" else None,
-        "estado": "pendiente"
-    }
 
-    if guardar_viaje(viaje_a_guardar):
-        print("🟢 Guardado en viajes.json:", viaje_a_guardar)
-        encolar_solicitud(viaje_a_guardar)  # también persiste en solicitudes.json
-        return jsonify({"ok": True, "viaje": viaje_a_guardar}), 200
 
-    print("❌ Error al guardar viaje")
-    return jsonify({"ok": False, "error": "No se pudo guardar el viaje"}), 500
+@app.get("/api/solicitudes")
+@requiere_login
+def api_listar_solicitudes():
+    """Devuelve todas las solicitudes pendientes para que los conductores las vean"""
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        solicitudes = listar_solicitudes()
+        
+        # Enriquecer con información del pasajero
+        resultado = []
+        for sol in solicitudes:
+            pasajero_id = sol.get('pasajero_id')
+            pasajero = get_user_by_id_and_tipo(pasajero_id, 'pasajero')
+            
+            resultado.append({
+                'id': sol.get('solicitud_id') or sol.get('viaje_id') or sol.get('id'),
+                'pasajero_id': pasajero_id,
+                'pasajero_nombre': pasajero.get('nombre') if pasajero else 'Desconocido',
+                'pasajero_telefono': pasajero.get('telefono') if pasajero else 'N/A',
+                'origen': sol.get('origen'),
+                'destino': sol.get('destino'),
+                'distancia': sol.get('distancia', 0),
+                'precio_sugerido': sol.get('precio_sugerido'),
+                'ruta': sol.get('ruta', []),
+                'fecha': sol.get('fecha', '')
+            })
+        
+        return jsonify(resultado), 200
+    except Exception as e:
+        print(f"❌ Error en /api/solicitudes: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Agregar estos endpoints a app.py
+
+# ============================================
+# ENDPOINTS PARA CONDUCTORES
+# ============================================
+
+@app.get("/api/conductor/solicitudes-cercanas")
+@requiere_login
+def api_solicitudes_cercanas_conductor():
+    """
+    Obtiene solicitudes activas cercanas a la ubicación del conductor
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        lat = float(request.args.get('lat', -12.0464))
+        lng = float(request.args.get('lng', -77.0428))
+        radio = float(request.args.get('radio', 10))  # km
+        
+        from servicios.solicitudes_mejoradas import obtener_solicitudes_cercanas
+        solicitudes = obtener_solicitudes_cercanas(lat, lng, radio)
+        
+        # Enriquecer con datos del pasajero
+        from servicios.usuarios_repo import buscar_usuario_por_id
+        for sol in solicitudes:
+            pasajero = buscar_usuario_por_id(sol['pasajero_id'], 'pasajero')
+            if pasajero:
+                sol['pasajero_nombre'] = pasajero.get('nombre', 'Desconocido')
+                sol['pasajero_telefono'] = pasajero.get('telefono', '')
+        
+        return jsonify(solicitudes), 200
+        
+    except Exception as e:
+        print("❌ Error en solicitudes cercanas:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/conductor/aceptar-solicitud")
+@requiere_login
+def api_aceptar_solicitud():
+    """
+    Conductor acepta una solicitud con el precio estándar
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        conductor_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import aceptar_solicitud_directa
+        resultado = aceptar_solicitud_directa(conductor_id, solicitud_id)
+        
+        if resultado:
+            return jsonify({"ok": True, "solicitud": resultado}), 200
+        else:
+            return jsonify({"error": "No se pudo aceptar la solicitud"}), 400
+            
+    except Exception as e:
+        print("❌ Error aceptando solicitud:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/conductor/contraoferta")
+@requiere_login
+def api_crear_contraoferta():
+    """
+    Conductor envía una contraoferta con precio diferente
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        precio_ofrecido = float(data.get('precio_ofrecido', 0))
+        mensaje = data.get('mensaje', '')
+        conductor_id = session['user_id']
+        
+        if precio_ofrecido <= 0:
+            return jsonify({"error": "Precio inválido"}), 400
+        
+        from servicios.solicitudes_mejoradas import crear_contraoferta
+        resultado = crear_contraoferta(conductor_id, solicitud_id, precio_ofrecido, mensaje)
+        
+        if resultado:
+            return jsonify({"ok": True, "contraoferta": resultado}), 200
+        else:
+            return jsonify({"error": "No se pudo crear la contraoferta"}), 400
+            
+    except Exception as e:
+        print("❌ Error creando contraoferta:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+
+# ============================================
+# RUTA: VISTA DE CONTRAOFERTAS
+# ============================================
+
+@app.route("/contraofertas")
+@requiere_login
+def contraofertas():
+    """
+    Vista HTML para ver contraofertas (pasajero)
+    """
+    if session.get('user_type') != 'pasajero':
+        flash("❌ Solo los pasajeros pueden ver contraofertas", "error")
+        return redirect(url_for('dashboard'))
+    
+    return render_template('contraofertas.html')
+
+
+@app.get("/api/conductor/mis-viajes")
+@requiere_login
+def api_mis_viajes_conductor():
+    """
+    Obtiene los viajes del conductor (aceptados y en curso)
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        conductor_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import _leer_json, SOLICITUDES_FILE
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        
+        mis_viajes = [s for s in solicitudes 
+                      if s.get('conductor_id') == conductor_id 
+                      and s.get('estado') in ['aceptada', 'en_curso']]
+        
+        # Enriquecer con datos del pasajero
+        from servicios.usuarios_repo import buscar_usuario_por_id
+        for viaje in mis_viajes:
+            pasajero = buscar_usuario_por_id(viaje['pasajero_id'], 'pasajero')
+            if pasajero:
+                viaje['pasajero_nombre'] = pasajero.get('nombre', 'Desconocido')
+                viaje['pasajero_telefono'] = pasajero.get('telefono', '')
+        
+        return jsonify(mis_viajes), 200
+        
+    except Exception as e:
+        print("❌ Error obteniendo viajes:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# ENDPOINTS PARA PASAJEROS
+# ============================================
+
+
+@app.get("/api/pasajero/contraofertas")
+@requiere_login
+def api_contraofertas_pasajero():
+    """
+    Pasajero ve las contraofertas recibidas para sus solicitudes
+    """
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        pasajero_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import (
+            _leer_json, SOLICITUDES_FILE, obtener_contraofertas_pasajero
+        )
+        
+        # Obtener solicitudes activas del pasajero
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        mis_solicitudes = [s for s in solicitudes 
+                          if s['pasajero_id'] == pasajero_id 
+                          and s['estado'] == 'pendiente']
+        
+        resultado = []
+        for sol in mis_solicitudes:
+            contraofertas = obtener_contraofertas_pasajero(sol['id'])
+            
+            # Enriquecer con datos del conductor
+            from servicios.usuarios_repo import buscar_usuario_por_id
+            for contra in contraofertas:
+                conductor = buscar_usuario_por_id(contra['conductor_id'], 'conductor')
+                if conductor:
+                    contra['conductor_nombre'] = conductor.get('nombre', 'Conductor')
+                    contra['conductor_vehiculo'] = f"{conductor.get('modelo', 'N/D')} - {conductor.get('placa', '')}"
+                    contra['conductor_calificacion'] = 4.5  # Placeholder
+            
+            if contraofertas:
+                resultado.append({
+                    "solicitud": sol,
+                    "contraofertas": contraofertas
+                })
+        
+        return jsonify(resultado), 200
+        
+    except Exception as e:
+        print("❌ Error obteniendo contraofertas:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/pasajero/aceptar-contraoferta")
+@requiere_login
+def api_aceptar_contraoferta():
+    """
+    Pasajero acepta una contraoferta específica
+    """
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        data = request.get_json()
+        contraoferta_id = data.get('contraoferta_id')
+        pasajero_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import pasajero_acepta_contraoferta
+        resultado = pasajero_acepta_contraoferta(pasajero_id, contraoferta_id)
+        
+        if resultado:
+            return jsonify({"ok": True, "viaje": resultado}), 200
+        else:
+            return jsonify({"error": "No se pudo aceptar la contraoferta"}), 400
+            
+    except Exception as e:
+        print("❌ Error aceptando contraoferta:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/cancelar-solicitud")
+@requiere_login
+def api_cancelar_solicitud():
+    """
+    Cancela una solicitud (pasajero o conductor)
+    """
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        motivo = data.get('motivo', '')
+        usuario_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import cancelar_solicitud
+        resultado = cancelar_solicitud(solicitud_id, usuario_id, motivo)
+        
+        if resultado:
+            return jsonify({"ok": True}), 200
+        else:
+            return jsonify({"error": "No se pudo cancelar"}), 400
+            
+    except Exception as e:
+        print("❌ Error cancelando:", e)
+        return jsonify({"error": str(e)}), 500
+    
+
+
+
+
+@app.post("/api/conductor/finalizar-viaje")
+@requiere_login
+def api_finalizar_viaje():
+    """El conductor finaliza el viaje"""
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json(force=True)
+        viaje_id = data.get('viaje_id')
+        
+        viajes = _leer_json(VIAJES_FILE)
+        viaje_encontrado = False
+        
+        for viaje in viajes:
+            if viaje.get('id') == viaje_id and viaje.get('conductor_id') == session['user_id']:
+                if viaje.get('estado') == 'en_curso':
+                    viaje['estado'] = 'completado'
+                    viaje['hora_fin'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    viaje_encontrado = True
+                    break
+        
+        if viaje_encontrado:
+            _guardar_json_atomic(VIAJES_FILE, viajes)
+            return jsonify({"ok": True, "mensaje": "Viaje completado"}), 200
+        else:
+            return jsonify({"error": "Viaje no encontrado o no está en curso"}), 404
+            
+    except Exception as e:
+        print(f"❌ Error en /api/conductor/finalizar-viaje: {e}")
+        return jsonify({"error": str(e)}), 500
+    
 
 @app.get("/api/solicitudes_cercanas")
 @requiere_login
@@ -536,6 +888,215 @@ def _norm_point(p):
         }
     except Exception:
         return {"nombre": str(nombre), "lat": -12.0464, "lng": -77.0428}
+
+
+
+@app.get("/api/pasajero/ofertas-pendientes")
+@requiere_login
+def api_ofertas_pendientes():
+    """El pasajero ve las ofertas que los conductores le han hecho"""
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        pasajero_id = session['user_id']
+        viajes = _leer_json(VIAJES_FILE)
+        
+        # Filtrar viajes pendientes de confirmación para este pasajero
+        ofertas = [
+            v for v in viajes 
+            if v.get('pasajero_id') == pasajero_id 
+            and v.get('estado') == 'pendiente_confirmacion'
+        ]
+        
+        # Enriquecer con info del conductor
+        for oferta in ofertas:
+            conductor = get_user_by_id_and_tipo(oferta.get('conductor_id'), 'conductor')
+            if conductor:
+                oferta['conductor_nombre'] = conductor.get('nombre')
+                oferta['conductor_telefono'] = conductor.get('telefono')
+                oferta['conductor_vehiculo'] = f"{conductor.get('modelo')} {conductor.get('color')} - {conductor.get('placa')}"
+        
+        return jsonify(ofertas), 200
+        
+    except Exception as e:
+        print(f"❌ Error en /api/pasajero/ofertas-pendientes: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/pasajero/confirmar-oferta")
+@requiere_login
+def api_confirmar_oferta():
+    """El pasajero acepta la oferta de un conductor"""
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        data = request.get_json(force=True)
+        viaje_id = data.get('viaje_id')
+        
+        viajes = _leer_json(VIAJES_FILE)
+        viaje_encontrado = False
+        
+        for viaje in viajes:
+            if viaje.get('id') == viaje_id and viaje.get('pasajero_id') == session['user_id']:
+                if viaje.get('estado') == 'pendiente_confirmacion':
+                    viaje['estado'] = 'confirmado'
+                    viaje['fecha_confirmacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    viaje_encontrado = True
+                    break
+        
+        if viaje_encontrado:
+            _guardar_json_atomic(VIAJES_FILE, viajes)
+            return jsonify({
+                "ok": True, 
+                "mensaje": "Oferta confirmada. El conductor puede iniciar el viaje."
+            }), 200
+        else:
+            return jsonify({"error": "Viaje no encontrado"}), 404
+            
+    except Exception as e:
+        print(f"❌ Error en /api/pasajero/confirmar-oferta: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/pasajero/rechazar-oferta")
+@requiere_login
+def api_rechazar_oferta():
+    """El pasajero rechaza la oferta de un conductor"""
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        data = request.get_json(force=True)
+        viaje_id = data.get('viaje_id')
+        
+        viajes = _leer_json(VIAJES_FILE)
+        viaje_encontrado = False
+        
+        for viaje in viajes:
+            if viaje.get('id') == viaje_id and viaje.get('pasajero_id') == session['user_id']:
+                if viaje.get('estado') == 'pendiente_confirmacion':
+                    viaje['estado'] = 'rechazado'
+                    viaje['fecha_rechazo'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    viaje_encontrado = True
+                    break
+        
+        if viaje_encontrado:
+            _guardar_json_atomic(VIAJES_FILE, viajes)
+            return jsonify({
+                "ok": True, 
+                "mensaje": "Oferta rechazada."
+            }), 200
+        else:
+            return jsonify({"error": "Viaje no encontrado"}), 404
+            
+    except Exception as e:
+        print(f"❌ Error en /api/pasajero/rechazar-oferta: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# HELPER: CALCULAR DISTANCIA ENTRE COORDENADAS
+# ============================================
+
+def calcular_distancia_haversine(lat1, lng1, lat2, lng2):
+    """
+    Calcula la distancia en km entre dos coordenadas usando Haversine
+    """
+    from math import radians, sin, cos, sqrt, atan2
+    
+    R = 6371  # Radio de la Tierra en km
+    
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lng2 - lng1)
+    
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
+    
+    return R * c
+
+
+# ============================================
+# ENDPOINT: CALCULAR DISTANCIA
+# ============================================
+
+@app.post("/api/calcular-distancia")
+def api_calcular_distancia():
+    """
+    Calcula la distancia entre dos puntos
+    """
+    try:
+        data = request.get_json()
+        
+        origen = data.get('origen', {})
+        destino = data.get('destino', {})
+        
+        lat1 = float(origen.get('lat', 0))
+        lng1 = float(origen.get('lng', 0))
+        lat2 = float(destino.get('lat', 0))
+        lng2 = float(destino.get('lng', 0))
+        
+        distancia = calcular_distancia_haversine(lat1, lng1, lat2, lng2)
+        
+        from servicios.solicitudes_mejoradas import calcular_precio
+        precio = calcular_precio(distancia)
+        
+        return jsonify({
+            "distancia": round(distancia, 2),
+            "precio_estimado": round(precio, 2),
+            "tiempo_estimado": round(distancia * 3, 0)  # ~3 min por km
+        }), 200
+        
+    except Exception as e:
+        print("❌ Error calculando distancia:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# MODIFICAR BUSCAR-VIAJES PARA NO RETORNAR CONDUCTORES
+# ============================================
+
+@app.get("/api/buscar-viajes")
+def buscar_viajes():
+    """
+    Calcula la ruta y devuelve información, pero NO lista conductores aún.
+    El pasajero debe crear una solicitud primero.
+    """
+    try:
+        origen = request.args.get("origen")
+        destino = request.args.get("destino")
+        pasajeros = request.args.get("pasajeros")
+
+        if not origen or not destino:
+            return jsonify({"error": "Faltan parámetros"}), 400
+
+        # Calcular la mejor ruta usando el grafo
+        distancia, ruta = gestor_rutas.calcular_mejor_ruta(origen, destino)
+
+        if distancia == float("inf") or not ruta:
+            return jsonify({
+                "resultados": [],
+                "distancia": 0,
+                "mensaje": "No existe una ruta entre estos puntos"
+            }), 200
+
+        # Calcular precio estimado
+        from servicios.solicitudes_mejoradas import calcular_precio
+        precio_estimado = calcular_precio(distancia)
+        tiempo_estimado = round(distancia * 3, 0)
+
+        return jsonify({
+            "distancia": distancia,
+            "ruta": ruta,
+            "precio_estimado": precio_estimado,
+            "tiempo_estimado": tiempo_estimado,
+            "mensaje": "Haz clic en 'Solicitar' para que los conductores vean tu viaje"
+        }), 200
+
+    except Exception as e:
+        print("❌ Error en /api/buscar-viajes:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 

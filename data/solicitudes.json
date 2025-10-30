@@ -1,0 +1,338 @@
+[
+  {
+    "id": 1,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.02261017137235,
+      "lng": -76.9939684867859
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 3.0,
+    "fecha_creacion": "2025-10-29 17:57:04",
+    "fecha_actualizacion": "2025-10-29 17:58:39"
+  },
+  {
+    "id": 2,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.022573444105252,
+      "lng": -76.99939727783203
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.022211417918388,
+      "lng": -76.99394702911378
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 3.0,
+    "fecha_creacion": "2025-10-29 17:58:02",
+    "fecha_actualizacion": "2025-10-29 17:58:45"
+  },
+  {
+    "id": 3,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.02219567763835,
+      "lng": -76.99090003967287
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.018753780953965,
+      "lng": -77.00119972229005
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 3.0,
+    "fecha_creacion": "2025-10-29 17:59:25",
+    "fecha_actualizacion": "2025-10-29 17:59:39"
+  },
+  {
+    "id": 4,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.02219567763835,
+      "lng": -76.99090003967287
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.018753780953965,
+      "lng": -77.00119972229005
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 17:59:54",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 5,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "San Martín de Porres",
+      "lat": -11.991384939330269,
+      "lng": -77.08256721496583
+    },
+    "destino": {
+      "nombre": "San Martín de Porres",
+      "lat": -12.006077147797807,
+      "lng": -77.08222389221193
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 18:12:57",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 6,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Callao",
+      "lat": -12.024829538349389,
+      "lng": -77.10471153259279
+    },
+    "destino": {
+      "nombre": "Callao",
+      "lat": -12.015479740817089,
+      "lng": -77.10930347442627
+    },
+    "distancia": 21.0,
+    "precio_estandar": 28.2,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 18:37:56",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 7,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.029037365888872,
+      "lng": -77.01463222503664
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.02391660946929,
+      "lng": -77.03102588653566
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 20.0,
+    "fecha_creacion": "2025-10-29 18:39:31",
+    "fecha_actualizacion": "2025-10-29 20:03:40"
+  },
+  {
+    "id": 8,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.046371661493636,
+      "lng": -77.02025413513185
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 3.0,
+    "fecha_creacion": "2025-10-29 18:45:15",
+    "fecha_actualizacion": "2025-10-29 19:21:51"
+  },
+  {
+    "id": 9,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.01976116990644,
+      "lng": -76.99124336242677
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 6.0,
+    "fecha_creacion": "2025-10-29 18:57:17",
+    "fecha_actualizacion": "2025-10-29 19:23:47"
+  },
+  {
+    "id": 10,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.011366146765994,
+      "lng": -76.99841022491456
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 19:22:28",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 11,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.013276037534228,
+      "lng": -76.99439764022829
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 19:23:04",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 12,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.022416041475172,
+      "lng": -76.9972085952759
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.021817910641035,
+      "lng": -76.99135065078735
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "aceptada",
+    "conductor_id": 1,
+    "precio_acordado": 15.0,
+    "fecha_creacion": "2025-10-29 19:28:47",
+    "fecha_actualizacion": "2025-10-29 19:38:42"
+  },
+  {
+    "id": 13,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.01808218622401,
+      "lng": -76.98993444442749
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 19:38:35",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 14,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Surco",
+      "lat": -12.22812517408997,
+      "lng": -76.85760498046876
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 19:39:50",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 15,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9949696
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0195722847651,
+      "lng": -76.99592113494874
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 20:00:17",
+    "fecha_actualizacion": null
+  },
+  {
+    "id": 16,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.04057969682293,
+      "lng": -77.01184272766115
+    },
+    "destino": {
+      "nombre": "Centro de Lima",
+      "lat": -12.022699366143,
+      "lng": -77.0273780822754
+    },
+    "distancia": 0.0,
+    "precio_estandar": 3.0,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-10-29 20:16:41",
+    "fecha_actualizacion": null
+  }
+]

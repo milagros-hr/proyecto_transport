@@ -6,6 +6,25 @@ BASE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 SOLICITUDES_FILE = os.path.join(BASE_DIR, 'solicitudes.json')
 VIAJES_FILE = os.path.join(BASE_DIR, 'viajes.json')
 
+# Agregar esta función al archivo servicios/solicitudes.py
+
+import time
+import uuid
+
+def generar_solicitud_id():
+    """Genera un ID único para solicitudes"""
+    return f"sol-{int(time.time()*1000)}-{uuid.uuid4().hex[:8]}"
+
+# Modificar la función encolar_solicitud para agregar ID automáticamente
+def encolar_solicitud(solicitud: dict):
+    """Encola una solicitud agregando un ID único si no existe"""
+    if 'solicitud_id' not in solicitud and 'id' not in solicitud:
+        solicitud['solicitud_id'] = generar_solicitud_id()
+    cola_solicitudes.encolar(solicitud)
+    return solicitud.get('solicitud_id') or solicitud.get('id')
+
+
+
 def _leer_json(path):
     try:
         if os.path.exists(path):
@@ -24,15 +43,6 @@ def _guardar_json(path, data):
     except Exception as e:
         print("❌ Error guardando JSON:", e)
         return False
-
-def encolar_solicitud(solicitud: dict):
-    """Encola y guarda en archivo persistente."""
-    print("🟢 Encolando solicitud:", solicitud)
-    cola_solicitudes.encolar(solicitud)
-
-    solicitudes = _leer_json(SOLICITUDES_FILE)
-    solicitudes.append(solicitud)
-    _guardar_json(SOLICITUDES_FILE, solicitudes)
 
 def listar_solicitudes():
     """Combina solicitudes en memoria + archivo + viajes.json"""
@@ -68,9 +78,6 @@ def listar_solicitudes():
 def leer_solicitudes():
     """Para el endpoint /api/solicitudes_cercanas"""
     return listar_solicitudes()
-
-def generar_solicitud_id():
-    return f"sol-{int(time.time()*1000)}"
 
 def aceptar_solicitud_por_id(solicitud_id):
     """Busca y elimina una solicitud de la cola o archivo."""
