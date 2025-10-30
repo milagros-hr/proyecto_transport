@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box‑sizing: border-box; }
         
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -276,7 +276,8 @@
             z-index: 1000;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        
+
+        /* Media queries para responsividad */
         @media (max-width: 1024px) {
             .container {
                 grid-template-columns: 1fr;
@@ -286,9 +287,57 @@
             .sidebar {
                 max-height: 50vh;
             }
+
+            #map {
+                height: calc(100vh - 50vh);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+
+            .acciones {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                max-width: 95%;
+                padding: 1.2rem;
+            }
+
+            .form-input {
+                padding: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .header .subtitle {
+                font-size: 0.8rem;
+            }
+
+            .precio-tag {
+                font-size: 1rem;
+                padding: 0.3rem 0.6rem;
+            }
+
+            .info-row {
+                font-size: 0.8rem;
+            }
         }
     </style>
 </head>
+
+
+
 <body>
     <div class="container">
         <!-- Sidebar -->
@@ -303,6 +352,12 @@
                     <i class="fas fa-location-crosshairs"></i>
                     Usar mi ubicación
                 </button>
+
+                <button class="btn btn-primary" id="btnSeleccionManual">
+                    <i class="fas fa-map-marker-alt"></i>
+                    Seleccionar ubicación manual
+                </button>
+
                 <button class="btn btn-primary" id="btnRefrescar">
                     <i class="fas fa-sync-alt"></i>
                     Actualizar solicitudes
@@ -312,7 +367,8 @@
                     Volver al Dashboard
                 </a>
             </div>
-            
+
+        
             <div class="solicitudes" id="listaSolicitudes">
                 <div class="empty-state">
                     <i class="fas fa-search-location"></i>
@@ -385,17 +441,20 @@
         let solicitudes = [];
         
         const carIcon = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3097/3097179.png',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
+            iconUrl: 'https://static.thenounproject.com/png/331565-200.png',
+            iconSize: [60, 60],
+            iconAnchor: [40, 40]
         });
         
         const passengerIcon = L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/747/747376.png',
-            iconSize: [35, 35],
+            iconSize: [30, 30],
             iconAnchor: [17, 17]
         });
         
+        
+
+
         // =========================================
         // INICIALIZACIÓN
         // =========================================
@@ -423,30 +482,33 @@
             document.getElementById('btnUbicacion').addEventListener('click', obtenerUbicacion);
             document.getElementById('btnRefrescar').addEventListener('click', cargarSolicitudes);
             document.getElementById('formContraoferta').addEventListener('submit', enviarContraoferta);
+            document.getElementById('btnSeleccionManual').addEventListener('click', activarSeleccionManual);
+
         }
         
         // =========================================
         // GEOLOCALIZACIÓN
         // =========================================
+        
         function obtenerUbicacion() {
             const btn = document.getElementById('btnUbicacion');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo...';
-            
+
             if (!navigator.geolocation) {
-                alert('Tu navegador no soporta geolocalización');
+                alert('Tu navegador no soporta geolocalización. Puedes seleccionar tu ubicación manualmente.');
+                activarSeleccionManual();
                 resetButton(btn);
                 return;
             }
-            
+
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-                    
+
                     ubicacionConductor = { lat, lng };
-                    
-                    // Actualizar marcador del conductor
+
                     if (conductorMarker) {
                         conductorMarker.setLatLng([lat, lng]);
                     } else {
@@ -455,29 +517,54 @@
                             .bindPopup('🚗 Tu ubicación')
                             .openPopup();
                     }
-                    
+
                     map.setView([lat, lng], 14);
-                    
-                    // Cargar solicitudes cercanas
                     cargarSolicitudes();
-                    
+
                     btn.innerHTML = '<i class="fas fa-check"></i> Ubicación obtenida';
                     setTimeout(() => resetButton(btn), 2000);
                 },
                 (error) => {
-                    alert('No se pudo obtener tu ubicación');
+                    alert('No se pudo obtener tu ubicación. Puedes seleccionarla manualmente.');
                     console.error(error);
+                    activarSeleccionManual();  // ← Aquí está el respaldo
                     resetButton(btn);
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
+
         
         function resetButton(btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Usar mi ubicación';
         }
         
+        function activarSeleccionManual() {
+            alert('Haz clic en el mapa para seleccionar tu ubicación manualmente.');
+
+            map.once('click', function(e) {
+                const { lat, lng } = e.latlng;
+                ubicacionConductor = { lat, lng };
+
+                // Crear o actualizar el marcador
+                if (conductorMarker) {
+                    conductorMarker.setLatLng([lat, lng]);
+                } else {
+                    conductorMarker = L.marker([lat, lng], { icon: carIcon })
+                        .addTo(map)
+                        .bindPopup('🚗 Ubicación seleccionada')
+                        .openPopup();
+                }
+
+                map.setView([lat, lng], 14);
+
+                cargarSolicitudes();
+            });
+        }
+
+
+
         // =========================================
         // CARGAR SOLICITUDES
         // =========================================
@@ -561,7 +648,7 @@
                                 <i class="fas fa-road"></i>
                                 <span>${sol.distancia.toFixed(1)} km • ~${tiempoEstimado} min</span>
                             </div>
-                            <div class="info-row">
+                            <div. class="info-row">
                                 <i class="fas fa-location-arrow"></i>
                                 <span class="distancia-badge">A ${distConductor.toFixed(1)} km de ti</span>
                             </div>
@@ -605,7 +692,7 @@
             });
             
             // Ajustar vista para mostrar todos los marcadores
-            if (solicitudMarkers.length > 0) {
+            if (solicitudMarkers.length > 0 && conductorMarker) {
                 const group = L.featureGroup([conductorMarker, ...solicitudMarkers]);
                 map.fitBounds(group.getBounds(), { padding: [50, 50] });
             }
