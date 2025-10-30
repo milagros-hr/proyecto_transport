@@ -1,241 +1,157 @@
-# TransPort (Flask + Leaflet)
+# 🚖 TransPort (Flask + Leaflet)
 
-Mini app de taxi con registro/login, listado de usuarios y búsqueda de viajes sobre un mapa.
-Persistencia simple en archivos JSON (carpeta `data/`).
-
-## 📁 Estructura del proyecto
-
-```
-PROYECTO_TRANSPORT/
-├─ app.py
-├─ requirements.txt
-├─ .gitignore
-├─ data/
-│  ├─ pasajeros.json
-│  ├─ conductores.json
-│  └─ viajes.json
-├─ estructuras/
-│  ├─ cola.py
-│  ├─ grafo.py
-│  └─ lista_enlazada.py
-├─ modelos/
-│  ├─ conductor.py
-│  ├─ pasajero.py
-│  └─ viaje.py
-├─ servicios/
-│  ├─ gestor_rutas.py
-│  ├─ solicitudes.py
-│  └─ usuarios_repo.py
-├─ static/
-│  ├─ taxi-lima.png
-│  └─ js/
-│     └─ buscar_viaje.js
-└─ templates/
-   ├─ index.html
-   ├─ login.html
-   ├─ registro.html
-   ├─ dashboard.html
-   ├─ buscar_viaje.html
-   └─ usuarios.html
-```
+**TransPort** es una aplicación web desarrollada en **Python (Flask)** con interfaz basada en **Leaflet.js** que permite la conexión entre **pasajeros** y **conductores** dentro de un entorno de rutas simuladas en Lima Metropolitana.  
+El sistema permite registrar usuarios, buscar viajes, visualizar rutas en el mapa y almacenar la información localmente en archivos JSON.
 
 ---
 
-## 🚀 Arranque rápido
+## 🌐 Demo en línea
 
-1. **Crear venv e instalar dependencias**
+👉 **Versión pública:** [https://proyecto-transport.onrender.com](https://proyecto-transport.onrender.com)
+
+> ⚠️ *La versión online puede tardar unos segundos en cargar por la instancia gratuita de Render.*
+
+---
+
+## 🧩 Características principales
+
+- 👥 Registro y login de **pasajeros** y **conductores**
+- 🚗 Creación de rutas y búsqueda de viajes
+- 🗺️ Visualización interactiva con **Leaflet**
+- ⚙️ Algoritmo para calcular la mejor ruta entre puntos
+- 💾 Almacenamiento de datos en archivos `.json`
+- 🧠 Sistema de solicitudes (match entre pasajero y conductor)
+- 📱 **Interfaz responsive** (nueva versión adaptada para conductores)
+- 🔒 Hash de contraseñas con `werkzeug.security`
+- 🧰 Módulos estructurados (servicios, controladores, templates, etc.)
+
+---
+
+## 🧱 Estructura del proyecto
+
+```
+
+proyecto_transport/
+│
+├── app.py                        # Archivo principal (Flask)
+│
+├── data/                         # Archivos JSON con datos persistentes
+│   ├── pasajeros.json
+│   ├── conductores.json
+│   └── viajes.json
+│
+├── servicios/                    # Lógica de negocio y manejo de datos
+│   ├── usuarios_repo.py
+│   ├── gestor_rutas.py
+│   └── solicitudes.py
+│
+├── static/                       # Archivos estáticos (CSS, JS, imágenes)
+│
+├── templates/                    # Páginas HTML con Jinja2
+│   ├── index.html
+│   ├── login.html
+│   ├── registro.html
+│   ├── dashboard.html
+│   ├── buscar_viaje.html
+│   ├── crear_ruta.html
+│   └── mis_viajes.html
+│
+├── requirements.txt              # Dependencias del proyecto
+├── README.md                     # Este archivo 😄
+└── .gitignore
+
+````
+
+---
+
+## ⚙️ Instalación local
+
+1️⃣ Clona el repositorio:
+```bash
+git clone https://github.com/milagros-hr/proyecto_transport.git
+````
+
+2️⃣ Entra al proyecto:
+
+```bash
+cd proyecto_transport
+```
+
+3️⃣ Crea un entorno virtual:
 
 ```bash
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
+```
 
+4️⃣ Activa el entorno virtual:
+
+* En Windows:
+
+  ```bash
+  .venv\Scripts\activate
+  ```
+* En macOS/Linux:
+
+  ```bash
+  source .venv/bin/activate
+  ```
+
+5️⃣ Instala las dependencias:
+
+```bash
 pip install -r requirements.txt
 ```
 
-2. **Ejecutar la app**
+6️⃣ Ejecuta el servidor local:
 
 ```bash
 python app.py
-# o con Flask
-# set FLASK_APP=app.py   (Windows)   | export FLASK_APP=app.py (macOS/Linux)
-# flask run --debug
 ```
 
-3. **Abrir en el navegador:**
-   `http://127.0.0.1:5000/`
+7️⃣ Abre en tu navegador:
+
+```
+http://127.0.0.1:5000/
+```
 
 ---
 
-## 🔐 Variables útiles (opcional)
+## 🧠 Tecnologías utilizadas
 
-* En `app.py`: `app.secret_key = 'tu_clave_secreta_aqui'`
-  En producción, usa variable de entorno:
-
-  ```bash
-  set SECRET_KEY=algo_super_secreto   # Windows
-  export SECRET_KEY=algo_super_secreto # macOS/Linux
-  ```
-
----
-
-## 🧭 Flujo de la app
-
-### 1) Registro / Login
-
-* **/registro**: crea **pasajero** o **conductor** (si es conductor, requiere licencia/placa/modelo/color).
-* **/login**: inicia sesión por correo (busca en pasajeros y/o conductores).
-
-Los datos se guardan en `data/pasajeros.json` y `data/conductores.json`.
-**Verificación rápida:** abre **/usuarios** y confirma que aparezcan.
-
-### 2) Dashboard
-
-* Te muestra stats y accesos rápidos.
-
-### 3) Buscar viaje (mapa)
-
-* **/buscar-viaje**:
-
-  * Mapa Leaflet centrado en Lima.
-  * Puedes: **clickear en el mapa** o **escribir** un nodo para **Origen/Destino**.
-  * Botón “mi ubicación” hace geolocalización y **snap** al nodo más cercano.
-  * Botón **Buscar** llama a `/api/buscar-viajes`, traza la ruta y lista conductores.
-  * “Seleccionar viaje” hace `POST /api/solicitar` y guarda en `data/viajes.json`.
-
-> Si todavía no expones tus nodos por backend, el frontend usa **FALLBACK_NODES** (Miraflores, Barranco, etc.) para que el mapa **siempre** tenga puntos.
+| Tecnología         | Descripción                      |
+| ------------------ | -------------------------------- |
+| 🐍 Flask           | Framework backend en Python      |
+| 🌍 Leaflet.js      | Librería para mapas interactivos |
+| 🧾 JSON            | Almacenamiento de datos local    |
+| 💡 HTML / CSS / JS | Interfaz web y diseño            |
+| 🔐 Werkzeug        | Seguridad de contraseñas         |
 
 ---
 
-## 🔌 Endpoints principales
+## 👩‍💻 Autores
 
-### Web (HTML)
+- **Huaynate Romero, Milagros Isabel**  
+- **Luera Collazos, Jeremy Alessandro**  
+- **Flores Pari, Alina Nicole**  
+- **Lopez Padilla, Enzo Fabrizio**  
+- **Rodriguez Perez, Javier André**
 
-* `GET /` → Landing
-* `GET|POST /registro`
-* `GET|POST /login`
-* `GET /dashboard` (requiere login)
-* `GET /usuarios` (debug/listado)
-
-### API (usadas por el mapa)
-
-* `GET /api/buscar-viajes?origen=...&destino=...&pasajeros=...`
-  Respuesta ejemplo:
-
-  ```json
-  {
-    "distancia": 8.4,
-    "ruta": ["Centro de Lima", "Miraflores", "Barranco"], 
-    "resultados": [
-      {
-        "id": 12,
-        "conductor": "Ana",
-        "vehiculo": "Corolla - ABC-123",
-        "precio": "S/ 10.20",
-        "tiempo": "22 min",
-        "origen": "Centro de Lima",
-        "destino": "Barranco",
-        "asientos": 4
-      }
-    ]
-  }
-  ```
-* `POST /api/solicitar`
-  Body:
-
-  ```json
-  {
-    "conductor_id": 12,
-    "origen": "Centro de Lima",
-    "destino": "Barranco",
-    "ruta": [],
-    "distancia": 0
-  }
-  ```
-
-  Respuesta:
-
-  ```json
-  {"ok": true, "viaje": { "id": 99, "pasajero_id": 1, "conductor_id": 12, ... }}
-  ```
-
-### (Opcional) Nodos del grafo
-
-* `GET /api/grafo/nodos`
-  Respuesta:
-
-  ```json
-  [
-    {"id":"miraflores","nombre":"Miraflores","lat":-12.1203,"lng":-77.0282},
-    {"id":"barranco","nombre":"Barranco","lat":-12.1406,"lng":-77.0214}
-  ]
-  ```
-
-> Si no implementas este endpoint, **no pasa nada**: el JS usa `FALLBACK_NODES`.
+📍 Facultad de Ingeniería de Sistemas e Informática – UNMSM
+🌐 GitHub: [@milagros-hr](https://github.com/milagros-hr)
 
 ---
 
-## 🗺️ Cómo funciona el mapa
+## 🏁 Estado actual del proyecto
 
-* **Leaflet** + **OpenStreetMap** para tiles.
-* Click en el mapa → toma lat/lng → **snap al nodo** más cercano (Haversine).
-* “Mi ubicación” (geolocalización web) → también hace snap a nodo.
-* Inputs `Origen/Destino` tienen **datalist** (`nodosList`) con autocompletado.
-* Se hace **reverse geocoding** (Nominatim) para mostrar texto humano (avenida, zona).
+✅ Implementado:
 
-  > Puede no ser 100% exacta, pero **el conductor usa el pin exacto** (coordenadas) para ubicarse.
+* Registro/login de usuarios
+* Gestión de viajes
+* Visualización de rutas con Leaflet
+* Interfaz responsive para chofer
 
+🚧 Próximamente:
 
----
-
-## 🧪 Prueba guiada (2 minutos)
-
-1. Abre `/registro` y crea:
-
-   * un **pasajero** (para loguearte),
-   * y un **conductor** (con placa/modelo/color/licencia).
-2. Haz **login** como pasajero.
-3. Entra a **/buscar-viaje**:
-
-   * Pulsa **“mi ubicación”** → debe marcar “Origen” (snap al nodo).
-   * Haz click en el mapa cerca del destino → se llena “Destino”.
-   * Pulsa **Buscar** → aparece la **ruta** y conductores.
-   * Pulsa **Seleccionar viaje** → se guarda en `data/viajes.json`.
-
----
-
-## 🛠️ Problemas comunes & soluciones
-
-**1) No veo puntos en el mapa**
-
-* Ver consola del navegador:
-
-  * Si ves `404 /static/js/buscar_viaje.js?v=1`, revisa la ruta y el nombre del archivo.
-  * Limpia caché cambiando el `?v=1` a `?v=2`.
-* Aunque falle `/api/grafo/nodos`, con **FALLBACK_NODES** deberías ver puntos.
-
-**2) Geolocalización no funciona**
-
-* Navegador puede pedir permiso.
-* En `http://localhost` suele estar permitido; en otros orígenes, puede requerir HTTPS.
-
-**3) No me registra conductores**
-
-* El form **debe** enviar `tipo_usuario=conductor` y los campos: `licencia`, `placa`, `modelo`, `color`.
-* Tu ruta `/registro` valida esos campos si `tipo == "conductor"`.
-
-**4) “Dirección” no es exacta**
-
-* Es normal en Nominatim. La app usa el **pin** exacto para la ubicación; el texto es solo informativo.
-
----
-
-## 🧩 Extensiones futuras
-
-* Hacer **persistencia** real de rutas/nodos desde `gestor_rutas.grafo`.
-* Añadir **/mis-viajes** con listado real desde `data/viajes.json`.
-* Usar **HTTPS** y clave de API para un geocoder más preciso (si migras a un servicio externo).
-
----
+* Confirmación en tiempo real de viajes
+* Sistema de precios dinámicos
+* Panel administrativo
