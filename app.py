@@ -344,19 +344,69 @@ def perfil():
             flash("❌ Error al actualizar el perfil.", "error")
 
     return render_template("perfil.html", usuario=usuario)
+
+
+# Credenciales del administrador (en producción usar variables de entorno)
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "123"
+
+# Decorador para rutas de admin
+def requiere_admin(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'admin_logged_in' not in session or not session['admin_logged_in']:
+            flash("❌ Debes iniciar sesión como administrador", "error")
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Ruta de login del admin
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "GET":
+        return render_template("admin_login.html")
+    
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "").strip()
+    
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        session['admin_logged_in'] = True
+        session['admin_username'] = username
+        flash("✅ Bienvenido, Administrador", "success")
+        return redirect(url_for('listar_usuarios'))
+    else:
+        flash("❌ Credenciales incorrectas", "error")
+        return render_template("admin_login.html")
+
+# Logout del admin
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    session.pop('admin_username', None)
+    flash("👋 Sesión de administrador cerrada", "info")
+    return redirect(url_for('inicio'))
+
+# Modificar la ruta /usuarios para requerir autenticación de admin
 @app.route("/usuarios")
+@requiere_admin
 def listar_usuarios():
     pasajeros = get_usuarios("pasajero")
     conductores = get_usuarios("conductor")
     return render_template("usuarios.html", pasajeros=pasajeros, conductores=conductores)
 
+# Modificar la ruta /limpiar_datos para requerir autenticación de admin
 @app.route("/limpiar_datos")
+@requiere_admin
 def limpiar_datos():
     ok1 = set_usuarios("pasajero", [])
     ok2 = set_usuarios("conductor", [])
     flash("🗑️ Todos los datos han sido eliminados" if (ok1 and ok2) else "❌ Error al limpiar los datos",
           "info" if (ok1 and ok2) else "error")
-    return redirect(url_for("inicio"))
+    return redirect(url_for("listar_usuarios"))
+
+
+
 
 # ---- Inyecta stats en todas las plantillas ----
 @app.context_processor
