@@ -396,16 +396,43 @@ def listar_usuarios():
     return render_template("usuarios.html", pasajeros=pasajeros, conductores=conductores)
 
 # Modificar la ruta /limpiar_datos para requerir autenticación de admin
+def vaciar_archivo_json(path):
+    try:
+        print(f"Intentando vaciar: {path}")
+        if not os.path.exists(path):
+            print(f"⚠️ No existe el archivo: {path}")
+            return False
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=4, ensure_ascii=False)
+        print(f"✔️ Vacío correctamente: {path}")
+        return True
+    except Exception as e:
+        print(f"❌ Error al vaciar {path}: {e}")
+        return False
+
+
 @app.route("/limpiar_datos")
 @requiere_admin
 def limpiar_datos():
-    ok1 = set_usuarios("pasajero", [])
-    ok2 = set_usuarios("conductor", [])
-    flash("🗑️ Todos los datos han sido eliminados" if (ok1 and ok2) else "❌ Error al limpiar los datos",
-          "info" if (ok1 and ok2) else "error")
+    DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+    archivos = [
+        os.path.join(DATA_DIR, "pasajeros.json"),
+        os.path.join(DATA_DIR, "conductores.json"),
+        os.path.join(DATA_DIR, "solicitudes.json"),
+        os.path.join(DATA_DIR, "contraofertas.json"),
+    ]
+
+    resultados = [vaciar_archivo_json(path) for path in archivos]
+
+    for path, ok in zip(archivos, resultados):
+        print(f"{'✅' if ok else '❌'} {os.path.basename(path)}")
+
+    todo_ok = all(resultados)
+    flash("🗑️ Todos los datos han sido eliminados" if todo_ok else "❌ Error al limpiar los datos",
+          "info" if todo_ok else "error")
+
     return redirect(url_for("listar_usuarios"))
-
-
 
 
 # ---- Inyecta stats en todas las plantillas ----
