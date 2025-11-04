@@ -2,15 +2,15 @@
   {
     "id": 1,
     "nombre": "MILAGROS ISABEL HUAYNATE ROMERO",
-    "correo": "milagrohuro2@gmail.com",
+    "correo": "milagrohuro@gmail.com",
     "telefono": "+51 904 457 665",
     "tipo": "conductor",
-    "fecha_registro": "2025-10-27 00:42:19",
-    "password_hash": "pbkdf2:sha256:1000000$7YleRumwn1amQPBv$c4e6bf3108dcf19351c37fe9ef99ebebae11e6d1fb434f9b974c0953ec3073a9",
+    "fecha_registro": "2025-11-04 08:33:45",
+    "password_hash": "pbkdf2:sha256:1000000$ztyg6IpCosYvS5cF$eea23e78da4e0d689ca091f3ebba1a4c38892ca95428324343186ef32ae63860",
     "licencia": "UIIUIU",
     "placa": "BCF-842",
-    "modelo": "Ererer",
-    "color": "Rojo",
+    "modelo": "Toyota Yaris 2021",
+    "color": "Reer",
     "capacidad": 4
   }
 ]
