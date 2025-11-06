@@ -142,18 +142,31 @@ def registro():
         color = color.title()
 
         import re as _re
-        if not _re.fullmatch(r"[A-Z]{3}-\d{3}", placa):
-            flash("❌ Formato de placa inválido. Usa ABC-123.", "error")
+        # La nueva regex permite (LNL-NNN) o (LLL-NNN)
+        # ([A-Z]\d[A-Z] | [A-Z]{3}) - \d{3}
+        if not _re.fullmatch(r"([A-Z]\d[A-Z]|[A-Z]{3})-\d{3}", placa):
+            # Actualiza el mensaje de error para reflejar los formatos válidos
+            flash("❌ Formato de placa inválido. Usa ABC-123 o A1B-123.", "error")
             return render_template("registro.html")
 
+
+        # --- NUEVA VALIDACIÓN DE COLOR ---
+        # Esta regex (^[A-Za-z ]+$) comprueba que la cadena solo
+        # contenga letras (mayúsculas o minúsculas) y espacios.
+        if not _re.fullmatch(r"^[A-Za-z ]+$", color):
+            flash("❌ El color solo debe contener letras y espacios.", "error")
+            return render_template("registro.html")
+        
+
+        # El resto de tu código sigue igual...
         if any(c.get("placa", "").upper() == placa for c in get_usuarios("conductor")):
             flash("❌ Esa placa ya está registrada.", "error")
             return render_template("registro.html")
-
     # --- Correo duplicado (por tipo) ---
     if usuario_existe(correo, tipo):
         flash(f"❌ Ya existe un {tipo} registrado con ese correo electrónico", "error")
         return render_template("registro.html")
+
 
     # --- Crear y guardar (con password_hash) ---
     usuarios = get_usuarios(tipo)
