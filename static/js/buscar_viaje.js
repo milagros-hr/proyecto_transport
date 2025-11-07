@@ -11,7 +11,49 @@ const API = {
   buscar: '/api/buscar-viajes',
   solicitar: '/api/solicitar'
 };
+async function calcularDistanciaEnServidor(origen, destino) {
+    try {
+        const resp = await fetch("/api/calcular-distancia", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ origen: origen, destino: destino })
+        });
+        if (!resp.ok) throw new Error("Error en /api/calcular-distancia");
+        return await resp.json();
+    } catch (err) {
+        console.error("calcularDistanciaEnServidor:", err);
+        return null;
+    }
+}
 
+async function mostrarRutaCalculada(origenPt, destinoPt) {
+    if (!origenPt || !destinoPt) return;
+
+    const info = await calcularDistanciaEnServidor(origenPt, destinoPt);
+
+    const distanciaTxtEl = document.querySelector("#distancia");
+    const tiempoTxtEl = document.querySelector("#tiempo");
+    const precioTxtEl = document.querySelector("#precio");
+
+    if (!info) {
+        if (distanciaTxtEl) distanciaTxtEl.textContent = "0.0 km";
+        if (tiempoTxtEl) tiempoTxtEl.textContent = "0 minutos";
+        if (precioTxtEl) precioTxtEl.textContent = "S/. 3.00";
+        window._ultimaDistanciaCalculada = 0.0;
+        return;
+    }
+
+    const distancia = Number(info.distancia) || 0;
+    const tiempo = info.tiempo_estimado;
+    const precio = info.precio_estimado;
+
+    if (distanciaTxtEl) distanciaTxtEl.textContent = `${Number(distancia).toFixed(2)} km`;
+    if (tiempoTxtEl) tiempoTxtEl.textContent = `${tiempo} minutos`;
+    if (precioTxtEl) precioTxtEl.textContent = `S/. ${Number(precio).toFixed(2)}`;
+
+    window._ultimaDistanciaCalculada = distancia;
+    document.querySelector('.ruta-calculada-card').style.display = 'block';
+}
 // ---- Fallback de nodos si el endpoint no responde ----
 const FALLBACK_NODES = [
   {"id":"centro_lima","nombre":"Centro de Lima","lat":-12.0464,"lng":-77.0428},
@@ -600,107 +642,72 @@ function findNodeByName(name) {
 }
 
 async function buscarViajes(e) {
-  if (e && e.preventDefault) e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
-  // lee lo que el UI realmente tiene
-  const origenInput = document.getElementById('origen');
-  const destinoInput = document.getElementById('destino');
-  const pasajerosInput = document.getElementById('pasajeros');
+    const origenInput = document.getElementById('origen');
+    const destinoInput = document.getElementById('destino');
+    const pasajerosInput = document.getElementById('pasajeros');
 
-  // preferimos dataset.node (establecido por setPointFromCoords/setPointFromNode)
-  let origenNode = origenInput ? (origenInput.dataset.node || '').toString().trim() : '';
-  let destinoNode = destinoInput ? (destinoInput.dataset.node || '').toString().trim() : '';
-  const pasajeros = pasajerosInput ? pasajerosInput.value : '';
+    let origenNode = origenInput ? (origenInput.dataset.node || '').toString().trim() : '';
+    let destinoNode = destinoInput ? (destinoInput.dataset.node || '').toString().trim() : '';
+    const pasajeros = pasajerosInput ? pasajerosInput.value : '';
 
-  // DEBUG: mostrar en consola lo que tenemos antes de enviar
-  console.log("🔎 buscarViajes - antes:", {
-    origenValue: origenInput ? origenInput.value : null,
-    origenDataset: origenNode,
-    destinoValue: destinoInput ? destinoInput.value : null,
-    destinoDataset: destinoNode,
-    pasajeros
-  });
-
-  // Si dataset.node está vacío, intentamos obtener nodo por nombre a partir del texto visible
-  if (!origenNode && origenInput && origenInput.value) {
-    const found = findNodeByName(origenInput.value);
-    if (found) {
-      origenNode = found.nombre;
-      origenInput.dataset.node = found.nombre; // sincroniza UI
-      console.log("➡️ asignado origenNode desde texto:", origenNode);
+    // Validaciones y asignaciones de nodos
+    if (!origenNode || !destinoNode || !pasajeros) {
+        showStatus('error', 'Completa origen, destino y número de pasajeros.');
+        return;
     }
-  }
-  if (!destinoNode && destinoInput && destinoInput.value) {
-    const found = findNodeByName(destinoInput.value);
-    if (found) {
-      destinoNode = found.nombre;
-      destinoInput.dataset.node = found.nombre;
-      console.log("➡️ asignado destinoNode desde texto:", destinoNode);
+
+    try {
+        const searchBtn = document.getElementById('searchBtn');
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+
+        // Primero calculamos la ruta y mostramos estimaciones
+        const origenPt = window._origenSeleccionado || { nombre: origenNode, lat: state.origen?.lat, lng: state.origen?.lng };
+        const destinoPt = window._destinoSeleccionado || { nombre: destinoNode, lat: state.destino?.lat, lng: state.destino?.lng };
+
+        // Llamar a calcularDistancia y mostrar la tarjeta
+        await mostrarRutaCalculada(origenPt, destinoPt);
+        document.querySelector('.ruta-calculada-card').style.display = 'block';
+
+        // Dibujar la ruta en el mapa
+        const origenCoords = getLatLngFor('origen');
+        const destinoCoords = getLatLngFor('destino');
+        if (origenCoords && destinoCoords) {
+            await drawRoadRouteWithOSRM(origenCoords, destinoCoords);
+        }
+
+        // Luego buscamos conductores disponibles
+        const url = new URL(API.buscar, window.location.origin);
+        url.searchParams.set('origen', origenNode);
+        url.searchParams.set('destino', destinoNode);
+        url.searchParams.set('pasajeros', pasajeros);
+
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Mostrar resultados de conductores si hay
+        if (data.conductores && data.conductores.length > 0) {
+            displayResultadoSolicitud(data);
+            document.getElementById('results').style.display = 'block';
+        } else {
+            document.getElementById('results').style.display = 'none';
+            showStatus('info', 'No hay conductores disponibles en este momento. Puedes solicitar el viaje de todas formas.');
+        }
+
+    } catch (err) {
+        console.error('❌ Error en búsqueda:', err);
+        showStatus('error', 'Error al buscar viajes. Intenta de nuevo.');
+        document.getElementById('results').style.display = 'none';
+    } finally {
+        const searchBtn = document.getElementById('searchBtn');
+        if (searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = '<i class="fas fa-search"></i> Buscar Viajes Disponibles';
+        }
     }
-  }
-
-  // Si aún no hay nodo, pero hay coords en state, intentar snap desde coords
-  if (!origenNode && state.origen && state.origen.lat != null) {
-    const snap = snapToNearestNode(state.origen.lat, state.origen.lng);
-    if (snap) {
-      origenNode = snap.nombre;
-      document.getElementById('origen').dataset.node = snap.nombre;
-      console.log("➡️ asignado origenNode por snapToNearestNode:", origenNode);
-    }
-  }
-  if (!destinoNode && state.destino && state.destino.lat != null) {
-    const snap = snapToNearestNode(state.destino.lat, state.destino.lng);
-    if (snap) {
-      destinoNode = snap.nombre;
-      document.getElementById('destino').dataset.node = snap.nombre;
-      console.log("➡️ asignado destinoNode por snapToNearestNode:", destinoNode);
-    }
-  }
-
-  // Última verificación antes de enviar
-  console.log("🔔 buscarViajes - enviando:", { origenNode, destinoNode, pasajeros });
-
-  if (!origenNode || !destinoNode || !pasajeros) {
-    showStatus('error', 'Completa origen y destino válidos (deben asociarse a un nodo) y número de pasajeros.');
-    return;
-  }
-
-  // Construir URL y fetch
-  try {
-    const searchBtn = document.getElementById('searchBtn');
-    searchBtn.disabled = true;
-    searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
-
-    const url = new URL(API.buscar, window.location.origin);
-    url.searchParams.set('origen', origenNode);
-    url.searchParams.set('destino', destinoNode);
-    url.searchParams.set('pasajeros', pasajeros);
-
-    // DEBUG: ver la URL completa antes de enviar
-    console.log("📡 Fetch URL:", url.toString());
-
-    const res = await fetch(url, { credentials: 'same-origin' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    // procesar y mostrar
-    if (data.resultados && data.resultados.length) {
-      displayResults(data.resultados || [], data.distancia);
-    } else {
-      showStatus('warning', 'No se encontraron viajes disponibles para esta ruta.');
-      document.getElementById('results').style.display = 'none';
-    }
-  } catch (err) {
-    console.error('  Error en búsqueda (frontend):', err);
-    showStatus('error', 'Error al buscar viajes. Intenta de nuevo.');
-    document.getElementById('results').style.display = 'none';
-  } finally {
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) {
-      searchBtn.disabled = false;
-      searchBtn.innerHTML = '<i class="fas fa-search"></i> Buscar Viajes Disponibles';
-    }
-  }
 }
 
 
@@ -829,49 +836,49 @@ function displayResults(resultados, distancia) {
 }
 
 async function reservarViaje(conductorId, resultIdx) {
-  const resultados = document.querySelectorAll('.result-item');
-  if (resultIdx >= resultados.length) return;
+    const resultados = document.querySelectorAll('.result-item');
+    if (resultIdx >= resultados.length) return;
 
-  const origenNode = document.getElementById('origen').dataset.node || '';
-  const destinoNode = document.getElementById('destino').dataset.node || '';
+    const origenNode = document.getElementById('origen').dataset.node || '';
+    const destinoNode = document.getElementById('destino').dataset.node || '';
 
-  const btn = resultados[resultIdx].querySelector('.btn-select');
-  const originalHTML = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reservando...';
+    const btn = resultados[resultIdx].querySelector('.btn-select');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reservando...';
 
-  try {
-    const payload = {
-      conductor_id: conductorId,
-      origen: origenNode,
-      destino: destinoNode,
-      // NOTA: No enviamos la ruta de nodos aquí ya que solo la usamos para la distancia.
-      ruta: [], 
-      distancia: 0
-    };
+    try {
+        const payload = {
+            conductor_id: conductorId,
+            origen: origenNode,
+            destino: destinoNode,
+            ruta: [], 
+            distancia: 0
+        };
 
-    const res = await fetch(API.solicitar, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify(payload)
-    });
+        const res = await fetch(API.solicitar, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
 
-    if (data.ok) {
-      showStatus('success', '¡Viaje reservado con éxito!');
-      setTimeout(() => { resetForm(); }, 1500);
-    } else {
-      throw new Error(data.error || 'Error desconocido');
+        if (data.ok) {
+            showStatus('success', '✅ Solicitud enviada. Los conductores cercanos la verán y podrán hacer ofertas.');
+            iniciarVerificacionOfertas();
+            setTimeout(() => { document.getElementById('results').style.display = 'none'; }, 2000);
+        } else {
+            throw new Error(data.error || 'Error desconocido');
+        }
+    } catch (err) {
+        console.error('❌ Error al reservar:', err);
+        showStatus('error', 'Error al enviar solicitud. Intenta de nuevo.');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
     }
-  } catch (err) {
-    console.error('❌ Error al reservar:', err);
-    showStatus('error', 'Error al reservar el viaje. Intenta de nuevo.');
-    btn.disabled = false;
-    btn.innerHTML = originalHTML;
-  }
 }
 
 // ========================================

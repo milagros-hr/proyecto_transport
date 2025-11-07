@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from servicios import usuarios_repo, gestor_rutas
-
+import os
+import json
 from datetime import datetime
 import re
 import servicios.gestor_rutas as gr
@@ -142,31 +143,18 @@ def registro():
         color = color.title()
 
         import re as _re
-        # La nueva regex permite (LNL-NNN) o (LLL-NNN)
-        # ([A-Z]\d[A-Z] | [A-Z]{3}) - \d{3}
-        if not _re.fullmatch(r"([A-Z]\d[A-Z]|[A-Z]{3})-\d{3}", placa):
-            # Actualiza el mensaje de error para reflejar los formatos válidos
-            flash("❌ Formato de placa inválido. Usa ABC-123 o A1B-123.", "error")
+        if not _re.fullmatch(r"[A-Z]{3}-\d{3}", placa):
+            flash("❌ Formato de placa inválido. Usa ABC-123.", "error")
             return render_template("registro.html")
 
-
-        # --- NUEVA VALIDACIÓN DE COLOR ---
-        # Esta regex (^[A-Za-z ]+$) comprueba que la cadena solo
-        # contenga letras (mayúsculas o minúsculas) y espacios.
-        if not _re.fullmatch(r"^[A-Za-z ]+$", color):
-            flash("❌ El color solo debe contener letras y espacios.", "error")
-            return render_template("registro.html")
-        
-
-        # El resto de tu código sigue igual...
         if any(c.get("placa", "").upper() == placa for c in get_usuarios("conductor")):
             flash("❌ Esa placa ya está registrada.", "error")
             return render_template("registro.html")
+
     # --- Correo duplicado (por tipo) ---
     if usuario_existe(correo, tipo):
         flash(f"❌ Ya existe un {tipo} registrado con ese correo electrónico", "error")
         return render_template("registro.html")
-
 
     # --- Crear y guardar (con password_hash) ---
     usuarios = get_usuarios(tipo)
@@ -491,34 +479,49 @@ def api_grafo_nodos():
 def api_solicitar():
     """
     El pasajero crea una solicitud de viaje
-    Esta queda abierta para que los conductores puedan verla y ofertar
+    Esta queda abierta para que los conductores la vean y ofertar
     """
     if session.get('user_type') != 'pasajero':
         return jsonify({"error": "Solo pasajeros"}), 403
     
     try:
+        import json
         data = request.get_json(force=True)
         pasajero_id = session.get("user_id")
         
-        # Normalizar origen y destino
+        # Raw origen/destino recibidos desde el frontend (pueden ser dict o JSON-string)
         origen_raw = data.get("origen") or {}
         destino_raw = data.get("destino") or {}
+
+        # Parsear si vienen como JSON-string
+        try:
+            if isinstance(origen_raw, str) and origen_raw.strip().startswith("{"):
+                origen_raw = json.loads(origen_raw)
+        except Exception:
+            pass
+        try:
+            if isinstance(destino_raw, str) and destino_raw.strip().startswith("{"):
+                destino_raw = json.loads(destino_raw)
+        except Exception:
+            pass
         
-        origen = {
-            "nombre": origen_raw.get("nombre", "Origen"),
-            "lat": float(origen_raw.get("lat", -12.0464)),
-            "lng": float(origen_raw.get("lng", -77.0428))
-        }
+        # Normalizar puntos (usa helper _norm_point definido en este archivo)
+        origen = _norm_point(origen_raw if isinstance(origen_raw, dict) else {"nombre": origen_raw})
+        destino = _norm_point(destino_raw if isinstance(destino_raw, dict) else {"nombre": destino_raw})
         
-        destino = {
-            "nombre": destino_raw.get("nombre", "Destino"),
-            "lat": float(destino_raw.get("lat", -12.0464)),
-            "lng": float(destino_raw.get("lng", -77.0428))
-        }
+        # Tomar distancia enviada; si no existe o es cero, recalcular con Haversine
+        try:
+            distancia = float(data.get("distancia", 0.0) or 0.0)
+        except Exception:
+            distancia = 0.0
+
+        if distancia <= 0.0 and origen and destino:
+            distancia = calcular_distancia_haversine(
+                origen["lat"], origen["lng"],
+                destino["lat"], destino["lng"]
+            )
         
-        distancia = float(data.get("distancia", 0.0))
-        
-        # Crear solicitud usando el nuevo sistema
+        # Crear solicitud usando el sistema mejorado
         from servicios.solicitudes_mejoradas import crear_solicitud_pasajero
         solicitud = crear_solicitud_pasajero(
             pasajero_id=pasajero_id,
@@ -528,7 +531,7 @@ def api_solicitar():
         )
         
         if solicitud:
-            flash(f"✅ Solicitud creada. Precio estimado: S/. {solicitud['precio_estandar']:.2f}", "success")
+            flash(f"✅ Solicitud creada. Precio estimado: S/. {solicitud.get('precio_estandar', 0):.2f}", "success")
             return jsonify({
                 "ok": True,
                 "solicitud": solicitud,
@@ -539,8 +542,7 @@ def api_solicitar():
             
     except Exception as e:
         print("❌ Error en /api/solicitar:", e)
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
 
 # ============================================
@@ -880,6 +882,7 @@ def api_finalizar_viaje():
         data = request.get_json(force=True)
         viaje_id = data.get('viaje_id')
         
+        from servicios.solicitudes_mejoradas import _leer_json, VIAJES_FILE, _guardar_json_atomic
         viajes = _leer_json(VIAJES_FILE)
         viaje_encontrado = False
         
@@ -990,16 +993,15 @@ def api_ofertas_pendientes():
     
     try:
         pasajero_id = session['user_id']
+        from servicios.solicitudes_mejoradas import _leer_json, VIAJES_FILE
         viajes = _leer_json(VIAJES_FILE)
         
-        # Filtrar viajes pendientes de confirmación para este pasajero
         ofertas = [
             v for v in viajes 
             if v.get('pasajero_id') == pasajero_id 
             and v.get('estado') == 'pendiente_confirmacion'
         ]
         
-        # Enriquecer con info del conductor
         for oferta in ofertas:
             conductor = get_user_by_id_and_tipo(oferta.get('conductor_id'), 'conductor')
             if conductor:
@@ -1025,6 +1027,7 @@ def api_confirmar_oferta():
         data = request.get_json(force=True)
         viaje_id = data.get('viaje_id')
         
+        from servicios.solicitudes_mejoradas import _leer_json, VIAJES_FILE, _guardar_json_atomic
         viajes = _leer_json(VIAJES_FILE)
         viaje_encontrado = False
         
@@ -1061,6 +1064,7 @@ def api_rechazar_oferta():
         data = request.get_json(force=True)
         viaje_id = data.get('viaje_id')
         
+        from servicios.solicitudes_mejoradas import _leer_json, VIAJES_FILE, _guardar_json_atomic
         viajes = _leer_json(VIAJES_FILE)
         viaje_encontrado = False
         
@@ -1152,23 +1156,49 @@ def buscar_viajes():
     """
     Calcula la ruta y devuelve información al pasajero.
     Si no existe ruta, usa fallback con distancia estimada.
+    Recalcula con Haversine si el grafo devuelve distancia==0 pero las coords reales difieren.
     """
     try:
-        origen = request.args.get("origen")
-        destino = request.args.get("destino")
+        import json
+        origen_arg = request.args.get("origen")
+        destino_arg = request.args.get("destino")
         pasajeros = int(request.args.get("pasajeros", 1))
 
-        if not origen or not destino:
+        if not origen_arg or not destino_arg:
             return jsonify({"error": "Faltan parámetros"}), 400
 
-        # Calcular ruta en grafo
-        distancia, ruta = gestor_rutas.calcular_mejor_ruta(origen, destino)
+        # Calcular ruta en grafo (puede recibir nombres o JSON string)
+        distancia, ruta = gestor_rutas.calcular_mejor_ruta(origen_arg, destino_arg)
+
+        # Helper para parsear argumento que puede venir como JSON-string o nombre/texto
+        def _parse_arg(a):
+            try:
+                if isinstance(a, str) and a.strip().startswith("{"):
+                    return _norm_point(json.loads(a))
+            except Exception:
+                pass
+            return _norm_point(a if isinstance(a, dict) else {"nombre": a})
+
+        origen_pt = _parse_arg(origen_arg)
+        destino_pt = _parse_arg(destino_arg)
+
+        # Si el grafo devolvió 0 (mismo nodo por nombre) pero las coords reales difieren,
+        # recalcular distancia usando Haversine y armar una ruta simple.
+        if (distancia == 0 or distancia == 0.0) and origen_pt and destino_pt:
+            lat_diff = abs(origen_pt["lat"] - destino_pt["lat"])
+            lng_diff = abs(origen_pt["lng"] - destino_pt["lng"])
+            if lat_diff > 1e-6 or lng_diff > 1e-6:
+                distancia = calcular_distancia_haversine(
+                    origen_pt["lat"], origen_pt["lng"],
+                    destino_pt["lat"], destino_pt["lng"]
+                )
+                ruta = [origen_pt.get("nombre", "origen"), destino_pt.get("nombre", "destino")]
 
         # Fallback: si no hay ruta válida, usar una distancia genérica
         if distancia == float("inf") or not ruta:
-            print(f"⚠️ Ruta no encontrada entre {origen} y {destino}. Usando estimación.")
+            print(f"⚠️ Ruta no encontrada entre {origen_arg} y {destino_arg}. Usando estimación.")
             distancia = 5.0  # valor genérico (km)
-            ruta = [origen, destino]
+            ruta = [origen_arg, destino_arg]
 
         # Calcular precio y tiempo
         from servicios.solicitudes_mejoradas import calcular_precio
@@ -1188,7 +1218,6 @@ def buscar_viajes():
         print("❌ Error en /api/buscar-viajes:", e)
         import traceback; traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
-
 
 
 
