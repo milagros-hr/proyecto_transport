@@ -60,11 +60,57 @@
     },
     "distancia": 12.0,
     "precio_estandar": 17.4,
+    "estado": "aceptada",
+    "conductor_id": 2,
+    "precio_acordado": 17.4,
+    "fecha_creacion": "2025-11-07 23:37:17",
+    "fecha_partida_estimada": "2025-11-08 00:07:17",
+    "hora_seleccionada": "30_min",
+    "fecha_actualizacion": "2025-11-07 23:42:39"
+  },
+  {
+    "id": 4,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "Surco",
+      "lat": -12.1339,
+      "lng": -76.9931
+    },
+    "destino": {
+      "nombre": "Barranco",
+      "lat": -12.1406,
+      "lng": -77.0214
+    },
+    "distancia": 12.0,
+    "precio_estandar": 17.4,
+    "estado": "aceptada",
+    "conductor_id": 2,
+    "precio_acordado": 19.0,
+    "fecha_creacion": "2025-11-07 23:46:16",
+    "fecha_partida_estimada": "2025-11-08 00:16:16",
+    "hora_seleccionada": "30_min",
+    "fecha_actualizacion": "2025-11-07 23:49:47"
+  },
+  {
+    "id": 5,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "San Isidro",
+      "lat": -12.104,
+      "lng": -77.0348
+    },
+    "destino": {
+      "nombre": "Barranco",
+      "lat": -12.1406,
+      "lng": -77.0214
+    },
+    "distancia": 6.0,
+    "precio_estandar": 10.2,
     "estado": "pendiente",
     "conductor_id": null,
     "precio_acordado": null,
-    "fecha_creacion": "2025-11-07 23:37:17",
-    "fecha_partida_estimada": "2025-11-08 00:07:17",
+    "fecha_creacion": "2025-11-07 23:57:25",
+    "fecha_partida_estimada": "2025-11-08 00:27:25",
     "hora_seleccionada": "30_min",
     "fecha_actualizacion": null
   }

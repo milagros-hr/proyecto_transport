@@ -402,7 +402,7 @@
             const diferencia = precioEstandar - contra.precio_ofrecido;
             const esMasBarato = diferencia > 0;
             const porcentaje = Math.abs((diferencia / precioEstandar) * 100).toFixed(0);
-            
+
             return `
                 <div class="contraoferta-card">
                     <div class="conductor-header">
@@ -422,19 +422,19 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="precio-oferta">
                             S/. ${contra.precio_ofrecido.toFixed(2)}
                         </div>
                     </div>
-                    
+
                     ${contra.mensaje ? `
                         <div class="mensaje-conductor">
                             <i class="fas fa-comment-alt"></i>
                             "${contra.mensaje}"
                         </div>
                     ` : ''}
-                    
+
                     <div class="comparacion-precios">
                         <span>Precio estándar: <span class="precio-original">S/. ${precioEstandar.toFixed(2)}</span></span>
                         ${esMasBarato ? `
@@ -449,7 +449,7 @@
                             </span>
                         `}
                     </div>
-                    
+
                     <div class="acciones">
                         <button class="btn btn-rechazar" onclick="rechazarContraoferta(${contra.id})">
                             <i class="fas fa-times"></i> Rechazar
@@ -496,18 +496,38 @@
             }
         }
         
-        // =========================================
+
         // RECHAZAR CONTRAOFERTA
-        // =========================================
+
         async function rechazarContraoferta(contraofertaId) {
             if (!confirm('¿Rechazar esta contraoferta? El conductor será notificado.')) {
                 return;
             }
             
-            // Aquí podrías agregar un endpoint para marcar como rechazada
-            // Por ahora solo recargamos
-            alert('Contraoferta rechazada');
-            cargarContraofertas();
+            try {
+                const res = await fetch('/api/pasajero/rechazar-contraoferta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ contraoferta_id: contraofertaId })
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+
+                if (data.ok) {
+                    alert('Oferta rechazada correctamente.');
+                    // Recargamos la lista para que desaparezca la oferta
+                    cargarContraofertas();
+                } else {
+                    alert('❌ ' + (data.error || 'Error al rechazar'));
+                }
+
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error al rechazar la contraoferta');
+            }
         }
     </script>
 </body>

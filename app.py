@@ -249,7 +249,16 @@ def dashboard():
         flash("❌ Sesión inválida. Inicia sesión nuevamente.", "error")
         return redirect(url_for('login'))
     stats = obtener_estadisticas()
-    return render_template("dashboard.html", usuario=usuario_actual, stats=stats)
+    conteo_ofertas = 0
+    if tipo == 'pasajero':
+        from servicios.solicitudes_mejoradas import contar_contraofertas_pendientes_pasajero
+        conteo_ofertas = contar_contraofertas_pendientes_pasajero(session['user_id'])
+    return render_template(
+        "dashboard.html",
+        usuario=usuario_actual,
+        stats=stats,
+        conteo_ofertas=conteo_ofertas  # <-- Pasar la variable
+    )
 
 @app.route("/logout")
 def logout():
@@ -846,6 +855,32 @@ def api_aceptar_contraoferta():
         return jsonify({"error": str(e)}), 500
 
 
+@app.post("/api/pasajero/rechazar-contraoferta")
+@requiere_login
+def api_rechazar_contraoferta_pasajero():
+    """
+    Pasajero rechaza una contraoferta específica
+    """
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+
+    try:
+        data = request.get_json()
+        contraoferta_id = data.get('contraoferta_id')
+        pasajero_id = session['user_id']
+
+        # Importar la nueva función
+        from servicios.solicitudes_mejoradas import pasajero_rechaza_contraoferta
+        resultado = pasajero_rechaza_contraoferta(pasajero_id, contraoferta_id)
+
+        if resultado:
+            return jsonify({"ok": True, "mensaje": "Oferta rechazada"}), 200
+        else:
+            return jsonify({"error": "No se pudo rechazar la contraoferta"}), 400
+
+    except Exception as e:
+        print("❌ Error rechazando contraoferta:", e)
+        return jsonify({"error": str(e)}), 500
 @app.post("/api/cancelar-solicitud")
 @requiere_login
 def api_cancelar_solicitud():

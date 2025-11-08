@@ -82,6 +82,65 @@ def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia, hora_viaje
     print(f"✅ Solicitud #{nuevo_id} creada: {origen['nombre']} → {destino['nombre']}, S/. {precio_estimado:.2f}")
     return solicitud
 
+
+def contar_contraofertas_pendientes_pasajero(pasajero_id: int) -> int:
+    """
+    Cuenta todas las contraofertas pendientes para todas las solicitudes activas
+    de un pasajero.
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        contraofertas_data = _leer_json(CONTRAOFERTAS_FILE)
+
+        # 1. Encontrar IDs de solicitudes 'pendientes' de este pasajero
+        #
+        mis_solicitudes_ids = {
+            s['id'] for s in solicitudes
+            if s.get('pasajero_id') == pasajero_id and s.get('estado') == 'pendiente'
+        }
+
+        if not mis_solicitudes_ids:
+            return 0
+
+        # 2. Contar contraofertas 'pendientes' para esas solicitudes
+        #
+        conteo = 0
+        for c in contraofertas_data:
+            if c.get('solicitud_id') in mis_solicitudes_ids and c.get('estado') == 'pendiente':
+                conteo += 1
+
+        return conteo
+
+    except Exception as e:
+        print(f"❌ Error contando contraofertas: {e}")
+        return 0
+
+
+def pasajero_rechaza_contraoferta(pasajero_id, contraoferta_id):
+    """
+    El pasajero rechaza una contraoferta.
+    La marca como 'rechazada' en contraofertas.json.
+    """
+    contraofertas = _leer_json(CONTRAOFERTAS_FILE)
+    contraoferta_encontrada = False
+
+    # Podríamos añadir una validación extra para asegurar que el pasajero_id
+    # es el dueño de la solicitud original, pero por ahora esto es funcional.
+
+    for c in contraofertas:
+        if c['id'] == contraoferta_id and c.get('estado') == 'pendiente':
+            c['estado'] = 'rechazada'
+            c['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            contraoferta_encontrada = True
+            break
+
+    if contraoferta_encontrada:
+        _guardar_json(CONTRAOFERTAS_FILE, contraofertas)
+        print(f"👎 Contraoferta #{contraoferta_id} marcada como RECHAZADA.")
+        return True
+
+    return False
+
 def obtener_solicitudes_activas():
     """
     Devuelve todas las solicitudes pendientes
