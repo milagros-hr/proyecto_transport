@@ -539,7 +539,38 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Usar mi ubicación';
         }
-        
+        function formatHoraViaje(hora_seleccionada, fecha_partida_str) {
+            if (hora_seleccionada === 'ahora' || !fecha_partida_str) {
+                return '<strong style="color: #4caf50;">Ahora</strong>';
+            }
+
+            try {
+                const ahora = new Date();
+                const partida = new Date(fecha_partida_str.replace(" ", "T")); // Formato ISO
+
+                // Diferencia en milisegundos
+                const diffMs = partida - ahora;
+
+                if (diffMs <= 0) {
+                    return '<strong style="color: #f44336;">Recogida Inmediata (Atrasado)</strong>';
+                }
+
+                const diffMin = Math.round(diffMs / 60000); // Milisegundos a minutos
+
+                if (diffMin <= 5) {
+                    return '<strong style="color: #ff9800;">En ~5 min</strong>';
+                }
+
+                return `En ${diffMin} min (aprox)`;
+
+            } catch (e) {
+                // Fallback si la fecha es inválida
+                if (hora_seleccionada === '30_min') return 'En 30 min';
+                if (hora_seleccionada === '60_min') return 'En 1 hora';
+                return 'Ahora';
+            }
+        }
+
         function activarSeleccionManual() {
             alert('Haz clic en el mapa para seleccionar tu ubicación manualmente.');
 
@@ -624,7 +655,7 @@
             container.innerHTML = solicitudes.map(sol => {
                 const distConductor = sol.distancia_conductor || 0;
                 const tiempoEstimado = Math.round(sol.distancia * 3); // Aproximado: 3 min por km
-                
+                const horaViajeTexto = formatHoraViaje(sol.hora_seleccionada, sol.fecha_partida_estimada);
                 return `
                     <div class="solicitud-card" onclick="verDetalles(${sol.id})">
                         <div class="solicitud-header">
@@ -647,6 +678,10 @@
                             <div class="info-row">
                                 <i class="fas fa-road"></i>
                                 <span>${sol.distancia.toFixed(1)} km • ~${tiempoEstimado} min</span>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-clock"></i>
+                                <span><strong>Recoger:</strong> ${horaViajeTexto}</span>
                             </div>
                             <div. class="info-row">
                                 <i class="fas fa-location-arrow"></i>

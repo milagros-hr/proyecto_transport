@@ -492,6 +492,8 @@ def api_solicitar():
         # Raw origen/destino recibidos desde el frontend (pueden ser dict o JSON-string)
         origen_raw = data.get("origen") or {}
         destino_raw = data.get("destino") or {}
+        hora_viaje = data.get("hora_viaje", "ahora")
+
 
         # Parsear si vienen como JSON-string
         try:
@@ -527,7 +529,8 @@ def api_solicitar():
             pasajero_id=pasajero_id,
             origen=origen,
             destino=destino,
-            distancia=distancia
+            distancia=distancia,
+            hora_viaje = hora_viaje
         )
         
         if solicitud:

@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "nombre": "Enzo Padilla",
+    "correo": "enz0l0p3z@hotmail.com",
+    "telefono": "+51 123 132 131",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-11-07 22:45:40",
+    "password_hash": "pbkdf2:sha256:1000000$ozyGpQxqTdi0Q34t$341ffa40288be8aa39ee094aec39404c7e9568ef7970f9dbe0a6b6fe6a742db9"
+  }
+]

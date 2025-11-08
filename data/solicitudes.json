@@ -1,0 +1,25 @@
+[
+  {
+    "id": 1,
+    "pasajero_id": 1,
+    "origen": {
+      "nombre": "La Molina",
+      "lat": -12.0794,
+      "lng": -76.9397
+    },
+    "destino": {
+      "nombre": "San Isidro",
+      "lat": -12.104,
+      "lng": -77.0348
+    },
+    "distancia": 14.0,
+    "precio_estandar": 19.8,
+    "estado": "aceptada",
+    "conductor_id": 2,
+    "precio_acordado": 19.8,
+    "fecha_creacion": "2025-11-07 23:06:50",
+    "fecha_partida_estimada": "2025-11-07 23:36:50",
+    "hora_seleccionada": "30_min",
+    "fecha_actualizacion": "2025-11-07 23:08:56"
+  }
+]

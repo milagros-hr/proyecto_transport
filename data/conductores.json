@@ -12,5 +12,19 @@
     "modelo": "Toyota Yaris 2021",
     "color": "Reer",
     "capacidad": 4
+  },
+  {
+    "id": 2,
+    "nombre": "ENZO FABRIZIO LOPEZ PADILLA",
+    "correo": "zopezlla@gmail.com",
+    "telefono": "enzo.lopezp@unmsm.edu.pe",
+    "tipo": "conductor",
+    "fecha_registro": "2025-11-07 23:07:32",
+    "password_hash": "pbkdf2:sha256:1000000$98XurZIcPF3h68gx$f3b2ed04b479c8b0632ce0d9784d8b3577191c88068763adb9c665ee8c72f1bb",
+    "licencia": "124235",
+    "placa": "OLA-123",
+    "modelo": "Tesla X",
+    "color": "Blanco",
+    "capacidad": 4
   }
 ]

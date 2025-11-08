@@ -1337,7 +1337,7 @@ function displayResultadoSolicitud(data) {
 async function crearSolicitud(distancia, precioEstimado) {
     const origenInput = document.getElementById('origen');
     const destinoInput = document.getElementById('destino');
-
+    const horaViajeValor = document.querySelector('input[name="hora_viaje"]:checked').value || 'ahora';
     const origenNode = origenInput.dataset.node || '';
     const destinoNode = destinoInput.dataset.node || '';
 
@@ -1367,7 +1367,8 @@ async function crearSolicitud(distancia, precioEstimado) {
                 lat: destinoCoords.lat,
                 lng: destinoCoords.lng
             },
-            distancia: distancia
+            distancia: distancia,
+            hora_viaje: horaViajeValor
         };
 
         const res = await fetch(API.solicitar, {

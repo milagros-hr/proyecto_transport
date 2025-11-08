@@ -4,7 +4,7 @@ Sistema de solicitudes con soporte para contraofertas
 """
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -44,7 +44,7 @@ def calcular_precio(distancia_km):
     precio = BASE + (TARIFA_KM * distancia_km)
     return min(precio, MAX_PRECIO)
 
-def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia):
+def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia, hora_viaje="ahora"):
     """
     Crea una solicitud de viaje desde el lado del pasajero
     """
@@ -52,6 +52,13 @@ def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia):
     
     nuevo_id = max([s.get('id', 0) for s in solicitudes], default=0) + 1
     precio_estimado = calcular_precio(distancia)
+
+    ahora = datetime.now()
+    fecha_partida_estimada = ahora
+    if hora_viaje == "30_min":
+        fecha_partida_estimada = ahora + timedelta(minutes=30)
+    elif hora_viaje == "60_min":
+        fecha_partida_estimada = ahora + timedelta(minutes=60)
     
     solicitud = {
         "id": nuevo_id,
@@ -64,6 +71,8 @@ def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia):
         "conductor_id": None,
         "precio_acordado": None,
         "fecha_creacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "fecha_partida_estimada": fecha_partida_estimada.strftime("%Y-%m-%d %H:%M:%S"),
+        "hora_seleccionada": hora_viaje,
         "fecha_actualizacion": None
     }
     
