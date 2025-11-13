@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "solicitud_id": 2,
+    "conductor_id": 2,
+    "precio_ofrecido": 17.5,
+    "mensaje": "",
+    "estado": "pendiente",
+    "fecha_creacion": "2025-11-07 23:36:01"
+  }
+]

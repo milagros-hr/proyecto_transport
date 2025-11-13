@@ -6,6 +6,38 @@
     <title>TransPort - Iniciar Sesión</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        .alert {
+            padding: 0.9rem 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem; /* Ajuste para separar del form */
+            font-weight: 600;
+            border: 1px solid #eee;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error, .alert-danger {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -374,7 +406,15 @@
             <h1 class="login-title">¡Bienvenido de vuelta!</h1>
             <p class="login-subtitle">Inicia sesión para continuar tu viaje</p>
         </div>
-
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message|safe }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <form class="login-form" id="loginForm" method="POST" action="/login">
 
             <div class="form-group">
@@ -411,8 +451,8 @@
                         <i class="fas fa-sign-in-alt"></i>
                         Iniciar Sesión
                     </button>
-</div>
-
+                </div>
+            </div>
             
         </form>
       

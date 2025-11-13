@@ -250,13 +250,7 @@
                     <small id="destinoAddress"></small>
                 </div>
 
-                <div class="form-group">
-                    <label for="fecha">Fecha del Viaje</label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-calendar"></i>
-                        <input type="datetime-local" id="fecha" class="form-input" required />
-                    </div>
-                </div>
+
 
                 <div class="form-group">
                     <label for="pasajeros">Número de Pasajeros</label>
@@ -272,11 +266,49 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>¿Cuándo deseas viajar?</label>
+                    <div class="mode-selector" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                        <label style="padding: 0.5rem; border-radius: 8px; text-align: center; border: 1px solid #ddd; cursor: pointer;">
+                            <input type="radio" name="hora_viaje" value="ahora" checked>
+                            <i class="fas fa-bolt"></i> Ahora
+                        </label>
+                        <label style="padding: 0.5rem; border-radius: 8px; text-align: center; border: 1px solid #ddd; cursor: pointer;">
+                            <input type="radio" name="hora_viaje" value="30_min">
+                            <i class="fas fa-clock"></i> En 30 min
+                        </label>
+                        <label style="padding: 0.5rem; border-radius: 8px; text-align: center; border: 1px solid #ddd; cursor: pointer;">
+                            <input type="radio" name="hora_viaje" value="60_min">
+                            <i class="fas fa-hourglass-start"></i> En 1 hora
+                        </label>
+                    </div>
+                </div>
                 <button type="submit" id="searchBtn" class="btn-search" disabled>
                     <i class="fas fa-search"></i> Buscar Viajes Disponibles
                 </button>
             </form>
 
+            <!-- Tarjeta de ruta calculada -->
+            <div class="ruta-calculada-card" style="display:none; margin-top: 2rem;">
+                <h3 style="color: #333; margin-bottom: 1rem;">
+                    <i class="fas fa-route"></i> Ruta Calculada
+                </h3>
+                <div class="item" style="margin-bottom: 1rem;">
+                    <label style="color: #666;">Distancia</label>
+                    <div id="distancia" style="font-size: 1.1rem; color: #333;">0.0 km</div>
+                </div>
+                <div class="item" style="margin-bottom: 1rem;">
+                    <label style="color: #666;">Tiempo estimado</label>
+                    <div id="tiempo" style="font-size: 1.1rem; color: #333;">0 minutos</div>
+                </div>
+                <div class="item precio" style="margin-bottom: 1.5rem;">
+                    <label style="color: #666;">Precio estimado</label>
+                    <div id="precio" style="font-size: 1.2rem; color: #2c3e50; font-weight: 600;">S/. 3.00</div>
+                </div>
+                <button id="btnSolicitar" class="btn-search" style="width: 100%;">
+                    <i class="fas fa-check-circle"></i> Solicitar viaje
+                </button>
+            </div>
             <!-- Resultados de búsqueda -->
             <div class="results" id="results" style="display: none;">
                 <h3 style="color: #333; margin-bottom: 1rem;">
@@ -298,8 +330,32 @@
     <!-- Leaflet -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
-    <!-- Tu JS principal (ajusta la ruta si tu archivo no está en /static/js/) -->
+    <!--  JS principal  -->
     <script src="/static/js/buscar_viaje.js?v=7"></script>
+
+<!-- Script para manejar solicitud -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const btn = document.querySelector("#btnSolicitar");
+        btn && btn.addEventListener("click", async function() {
+            const origenPt = window._origenSeleccionado || { nombre: "Origen", lat: -12.0464, lng: -77.0428 };
+            const destinoPt = window._destinoSeleccionado || { nombre: "Destino", lat: -12.1203, lng: -77.0282 };
+
+            await window.mostrarRutaCalculada(origenPt, destinoPt);
+            const res = await window.enviarSolicitud(origenPt, destinoPt, {});
+            if (res && res.ok) {
+                alert("Solicitud creada correctamente");
+                window.location.reload();
+            } else {
+                alert("Error creando solicitud: " + (res && res.error ? res.error : "desconocido"));
+            }
+        });
+
+        if (window._origenSeleccionado && window._destinoSeleccionado) {
+            window.mostrarRutaCalculada(window._origenSeleccionado, window._destinoSeleccionado);
+        }
+    });
+    </script>
 
 </body>
 </html>
