@@ -1,6 +1,6 @@
 [
   {
-    "id": 1,
+    "id": 5,
     "pasajero_id": 2,
     "origen": {
       "nombre": "Centro de Lima",
@@ -8,25 +8,25 @@
       "lng": -76.9982464
     },
     "destino": {
-      "nombre": "La Molina",
-      "lat": -12.025385688907036,
-      "lng": -76.92455291748048
+      "nombre": "Comas",
+      "lat": -11.944,
+      "lng": -77.062
     },
-    "distancia": 5.0,
-    "precio_estandar": 9.0,
+    "distancia": 11.58,
+    "precio_estandar": 16.9,
     "estado": "cancelado_conductor",
     "conductor_id": null,
     "precio_acordado": null,
-    "fecha_creacion": "2025-11-30 11:32:51",
-    "fecha_partida_estimada": "2025-11-30 11:32:51",
+    "fecha_creacion": "2025-11-30 12:52:13",
+    "fecha_partida_estimada": "2025-11-30 12:52:13",
     "hora_seleccionada": "ahora",
-    "fecha_actualizacion": "2025-11-30 11:33:04",
-    "fecha_confirmacion_pasajero": "2025-11-30 11:33:09",
-    "fecha_cancelacion": "2025-11-30 11:33:18",
+    "fecha_actualizacion": "2025-11-30 12:53:11",
+    "fecha_confirmacion": "2025-11-30 12:53:11",
+    "fecha_cancelacion": "2025-11-30 12:58:14",
     "motivo_cancelacion": ""
   },
   {
-    "id": 2,
+    "id": 6,
     "pasajero_id": 2,
     "origen": {
       "nombre": "Centro de Lima",
@@ -34,22 +34,25 @@
       "lng": -76.9982464
     },
     "destino": {
-      "nombre": "La Molina",
-      "lat": -12.025385688907036,
-      "lng": -76.92455291748048
+      "nombre": "San Miguel",
+      "lat": -12.0773,
+      "lng": -77.0907
     },
-    "distancia": 5.0,
-    "precio_estandar": 9.0,
-    "estado": "aceptada",
-    "conductor_id": 1,
-    "precio_acordado": 9.0,
-    "fecha_creacion": "2025-11-30 11:33:27",
-    "fecha_partida_estimada": "2025-11-30 11:33:27",
+    "distancia": 6.24,
+    "precio_estandar": 18.9,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 13:04:18",
+    "fecha_partida_estimada": "2025-11-30 13:04:18",
     "hora_seleccionada": "ahora",
-    "fecha_actualizacion": "2025-11-30 11:41:25"
+    "fecha_actualizacion": "2025-11-30 13:04:24",
+    "fecha_confirmacion_pasajero": "2025-11-30 13:04:32",
+    "fecha_cancelacion": "2025-11-30 13:16:50",
+    "motivo_cancelacion": ""
   },
   {
-    "id": 3,
+    "id": 7,
     "pasajero_id": 2,
     "origen": {
       "nombre": "Centro de Lima",
@@ -57,26 +60,181 @@
       "lng": -76.9982464
     },
     "destino": {
-      "nombre": "La Molina",
-      "lat": -12.025385688907036,
-      "lng": -76.92455291748048
+      "nombre": "Surco",
+      "lat": -12.1339,
+      "lng": -76.9931
     },
-    "distancia": 5.0,
-    "precio_estandar": 9.0,
-    "estado": "completado",
-    "conductor_id": 1,
-    "precio_acordado": 48.0,
-    "fecha_creacion": "2025-11-30 11:41:16",
-    "fecha_partida_estimada": "2025-11-30 11:41:16",
+    "distancia": 11.13,
+    "precio_estandar": 30.1,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 13:16:43",
+    "fecha_partida_estimada": "2025-11-30 13:16:43",
     "hora_seleccionada": "ahora",
-    "fecha_actualizacion": "2025-11-30 11:41:45",
-    "fecha_confirmacion": "2025-11-30 11:41:45",
-    "fecha_inicio": "2025-11-30 12:23:09",
-    "fecha_fin": "2025-11-30 12:23:18",
-    "duracion_minutos": 0.1
+    "fecha_actualizacion": "2025-11-30 13:17:00",
+    "fecha_confirmacion_pasajero": "2025-11-30 13:17:15",
+    "fecha_cancelacion": "2025-11-30 13:22:02",
+    "motivo_cancelacion": ""
   },
   {
-    "id": 4,
+    "id": 8,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Miraflores",
+      "lat": -12.11955787834286,
+      "lng": -77.02857971191408
+    },
+    "distancia": 8.37,
+    "precio_estandar": 23.8,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 13:22:22",
+    "fecha_partida_estimada": "2025-11-30 13:22:22",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 13:22:37",
+    "fecha_confirmacion_pasajero": "2025-11-30 13:22:45",
+    "fecha_cancelacion": "2025-11-30 13:25:06",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 9,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -12.002299227818435,
+      "lng": -76.99853897094728
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 13:25:21",
+    "fecha_partida_estimada": "2025-11-30 13:25:21",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 13:25:36",
+    "fecha_confirmacion": "2025-11-30 13:25:36",
+    "fecha_cancelacion": "2025-11-30 13:27:36",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 10,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -12.002299227818435,
+      "lng": -76.99853897094728
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 13:27:43",
+    "fecha_partida_estimada": "2025-11-30 13:27:43",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 13:27:46",
+    "fecha_confirmacion_pasajero": "2025-11-30 13:27:56",
+    "fecha_cancelacion": "2025-11-30 14:02:59",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 11,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Carabayllo",
+      "lat": -11.905,
+      "lng": -77.031
+    },
+    "distancia": 15.78,
+    "precio_estandar": 40.8,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 14:03:14",
+    "fecha_partida_estimada": "2025-11-30 14:03:14",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 14:03:19",
+    "fecha_confirmacion_pasajero": "2025-11-30 14:03:28",
+    "fecha_cancelacion": "2025-11-30 14:05:34",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 12,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Carabayllo",
+      "lat": -11.905,
+      "lng": -77.031
+    },
+    "distancia": 15.78,
+    "precio_estandar": 40.8,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 14:09:02",
+    "fecha_partida_estimada": "2025-11-30 14:09:02",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 14:09:19",
+    "fecha_confirmacion_pasajero": "2025-11-30 14:09:25",
+    "fecha_cancelacion": "2025-11-30 14:12:21",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 13,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -12.001123864133989,
+      "lng": -77.00815200805665
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 14:12:31",
+    "fecha_partida_estimada": "2025-11-30 14:12:31",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 14:12:35",
+    "fecha_confirmacion_pasajero": "2025-11-30 14:12:44",
+    "fecha_cancelacion": "2025-11-30 14:16:27",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 14,
     "pasajero_id": 2,
     "origen": {
       "nombre": "Centro de Lima",
@@ -88,15 +246,251 @@
       "lat": -12.104,
       "lng": -77.0348
     },
-    "distancia": 5.0,
-    "precio_estandar": 9.0,
+    "distancia": 6.46,
+    "precio_estandar": 19.4,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 14:17:24",
+    "fecha_partida_estimada": "2025-11-30 14:17:24",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 14:17:28",
+    "fecha_confirmacion_pasajero": "2025-11-30 14:17:38",
+    "fecha_cancelacion": "2025-11-30 14:41:04",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 15,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -12.003642494323886,
+      "lng": -77.00755119323732
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 14:41:14",
+    "fecha_partida_estimada": "2025-11-30 14:41:14",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 14:41:19",
+    "fecha_confirmacion_pasajero": "2025-11-30 14:41:28",
+    "fecha_cancelacion": "2025-11-30 14:47:41",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 16,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Barranco",
+      "lat": -12.1406,
+      "lng": -77.0214
+    },
+    "distancia": 10.73,
+    "precio_estandar": 29.2,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 14:48:07",
+    "fecha_partida_estimada": "2025-11-30 14:48:07",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 14:48:11",
+    "fecha_confirmacion_pasajero": "2025-11-30 14:48:21",
+    "fecha_cancelacion": "2025-11-30 16:01:22",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 17,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "La Molina",
+      "lat": -12.0794,
+      "lng": -76.9397
+    },
+    "distancia": 11.8,
+    "precio_estandar": 31.6,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 16:01:36",
+    "fecha_partida_estimada": "2025-11-30 16:01:36",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 16:01:43",
+    "fecha_confirmacion_pasajero": "2025-11-30 16:01:55",
+    "fecha_inicio": "2025-11-30 16:02:28",
+    "fecha_cancelacion": "2025-11-30 16:03:14",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 18,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "La Molina",
+      "lat": -12.0794,
+      "lng": -76.9397
+    },
+    "distancia": 11.8,
+    "precio_estandar": 31.6,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 16:04:57",
+    "fecha_partida_estimada": "2025-11-30 16:04:57",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 16:05:20",
+    "fecha_confirmacion": "2025-11-30 16:05:20",
+    "fecha_cancelacion": "2025-11-30 16:10:48",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 19,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -11.998857076839938,
+      "lng": -77.00016975402833
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "completado",
+    "conductor_id": 1,
+    "precio_acordado": 18.4,
+    "fecha_creacion": "2025-11-30 16:59:03",
+    "fecha_partida_estimada": "2025-11-30 16:59:03",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 16:59:25",
+    "fecha_confirmacion_pasajero": "2025-11-30 16:59:31",
+    "fecha_inicio": "2025-11-30 17:01:53",
+    "fecha_fin": "2025-11-30 17:02:02",
+    "duracion_minutos": 0.1
+  },
+  {
+    "id": 20,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Comas",
+      "lat": -11.944,
+      "lng": -77.062
+    },
+    "distancia": 11.58,
+    "precio_estandar": 31.1,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 17:04:47",
+    "fecha_partida_estimada": "2025-11-30 17:04:47",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 17:04:50",
+    "fecha_confirmacion_pasajero": "2025-11-30 17:05:01",
+    "fecha_cancelacion": "2025-11-30 17:11:54",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 21,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Comas",
+      "lat": -11.944,
+      "lng": -77.062
+    },
+    "distancia": 11.58,
+    "precio_estandar": 31.1,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 17:12:02",
+    "fecha_partida_estimada": "2025-11-30 17:12:02",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 17:12:14",
+    "fecha_confirmacion_pasajero": "2025-11-30 17:12:20",
+    "fecha_cancelacion": "2025-11-30 17:16:04",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 22,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Comas",
+      "lat": -11.944,
+      "lng": -77.062
+    },
+    "distancia": 11.58,
+    "precio_estandar": 31.1,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 17:16:17",
+    "fecha_partida_estimada": "2025-11-30 17:16:17",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 17:16:28",
+    "fecha_confirmacion_pasajero": "2025-11-30 17:16:35",
+    "fecha_cancelacion": "2025-11-30 17:30:25",
+    "motivo_cancelacion": ""
+  },
+  {
+    "id": 23,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Miraflores",
+      "lat": -12.1203,
+      "lng": -77.0282
+    },
+    "distancia": 8.37,
+    "precio_estandar": 23.8,
     "estado": "confirmado",
     "conductor_id": 1,
-    "precio_acordado": 9.0,
-    "fecha_creacion": "2025-11-30 12:24:15",
-    "fecha_partida_estimada": "2025-11-30 12:24:15",
+    "precio_acordado": 23.8,
+    "fecha_creacion": "2025-11-30 17:30:42",
+    "fecha_partida_estimada": "2025-11-30 17:30:42",
     "hora_seleccionada": "ahora",
-    "fecha_actualizacion": "2025-11-30 12:24:19",
-    "fecha_confirmacion_pasajero": "2025-11-30 12:24:38"
+    "fecha_actualizacion": "2025-11-30 17:30:56",
+    "fecha_confirmacion_pasajero": "2025-11-30 17:31:02"
   }
 ]

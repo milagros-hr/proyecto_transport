@@ -452,5 +452,75 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/static/js/crear_ruta.js"></script>
+
+
 </body>
+
+
+<script>
+    // ✅ Limpia panel + mapa cuando ya no hay viaje (ej: pasajero canceló)
+function limpiarVistaViaje() {
+  // ocultar panel/mostrar vacío (sin reventar si no existe)
+  const sinViajeEl = document.getElementById('sinViaje');
+  const viajeActivoEl = document.getElementById('viajeActivo');
+
+  if (sinViajeEl) sinViajeEl.style.display = 'block';
+  if (viajeActivoEl) viajeActivoEl.style.display = 'none';
+
+  // ✅ limpiar mapa: marcadores y rutas
+  try {
+    if (pasajeroMarker) { map.removeLayer(pasajeroMarker); pasajeroMarker = null; }
+    if (destinoMarker)  { map.removeLayer(destinoMarker);  destinoMarker = null; }
+    if (rutaPolyline)   { map.removeLayer(rutaPolyline);   rutaPolyline = null; }
+    if (rutaAlPasajeroPolyline) { map.removeLayer(rutaAlPasajeroPolyline); rutaAlPasajeroPolyline = null; }
+  } catch (e) {
+    console.warn("No se pudo limpiar el mapa:", e);
+  }
+}
+
+// ✅ Detecta cuando había un viaje y desaparece (pasajero canceló)
+let ultimoViajeId = null;
+
+async function cargarViajeActivo() {
+  try {
+    const res = await fetch('/api/conductor/mis-viajes-activos', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const viajes = await res.json();
+
+    // Buscar viaje confirmado o en curso (igual que tu lógica actual)
+    const nuevoViaje = Array.isArray(viajes)
+      ? viajes.find(v => v.estado === 'confirmado' || v.estado === 'en_curso')
+      : null;
+
+    // 👉 Caso: ya no hay viaje (pasajero canceló o terminó)
+    if (!nuevoViaje) {
+      if (ultimoViajeId !== null) {
+        alert("⚠️ El pasajero canceló el viaje. Se limpiará la pantalla.");
+      }
+      ultimoViajeId = null;
+      viajeActual = null;
+      limpiarVistaViaje();
+      return;
+    }
+
+    // 👉 Caso: hay viaje activo
+    viajeActual = nuevoViaje;
+    if (ultimoViajeId === null) ultimoViajeId = viajeActual.id;
+
+    // Render normal
+    renderizarViajeActivo();
+    await dibujarRutaReal();
+
+    // Auto-refrescar más rápido (para que el conductor se entere al toque)
+    if (!intervaloActualizacion) {
+      intervaloActualizacion = setInterval(cargarViajeActivo, 3000); // antes 15000
+    }
+
+  } catch (error) {
+    console.error('❌ Error en cargarViajeActivo:', error);
+  }
+}
+
+</script>
 </html>

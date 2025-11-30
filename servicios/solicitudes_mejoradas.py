@@ -56,15 +56,28 @@ def _guardar_json(path, data):
 
 def calcular_precio(distancia_km):
     """
-    Calcula el precio basado en distancia
-    Fórmula: Base + (tarifa_por_km * distancia)
+    Calcula el precio basado en distancia.
+    Ajuste: Tarifas de mercado actual (Lima Metropolitana - Estándar/Plus).
     """
-    BASE = 3.00  # S/. 3.00 base
-    TARIFA_KM = 1.20  # S/. 1.20 por km
-    MAX_PRECIO = 40.00  # S/. 40.00 máximo
+    # --- CONFIGURACIÓN DE TARIFAS ---
     
-    precio = BASE + (TARIFA_KM * distancia_km)
-    return min(precio, MAX_PRECIO)
+    # TARIFA_BASE: Arranque (S/. 4.50 es más común ahora)
+    TARIFA_BASE = 4.50
+    
+    # TARIFA_POR_KM: Subimos a 2.30 para que sume rápido
+    TARIFA_POR_KM = 2.30
+    
+    # TARIFA_MINIMA: Para no mover el auto por menos de 8 soles
+    TARIFA_MINIMA = 8.00
+    
+    # --- CÁLCULO ---
+    precio = TARIFA_BASE + (TARIFA_POR_KM * distancia_km)
+    
+    # Aplicar tarifa mínima
+    precio_final = max(precio, TARIFA_MINIMA)
+    
+    # Redondear a 1 decimal (ej: 20.6)
+    return round(precio_final, 1)
 
 def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia, hora_viaje="ahora"):
     """
@@ -162,6 +175,8 @@ def pasajero_rechaza_contraoferta(pasajero_id, contraoferta_id):
         return True
 
     return False
+
+
 
 def obtener_solicitudes_activas():
     """
@@ -321,24 +336,79 @@ def obtener_contraofertas_pasajero(solicitud_id):
     return [c for c in contraofertas 
             if c['solicitud_id'] == solicitud_id and c['estado'] == 'pendiente']
 
-def cancelar_solicitud(solicitud_id, usuario_id, motivo=""):
+def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
     """
-    Cancela una solicitud (puede ser pasajero o conductor)
+    Cancela una solicitud (pasajero o conductor)
+    Devuelve: (ok: bool, payload: dict|str)
     """
     solicitudes = _leer_json(SOLICITUDES_FILE)
-    
+
+    # Normalizar ids
+    try:
+        sid = int(solicitud_id)
+        uid = int(usuario_id)
+    except Exception:
+        return (False, "solicitud_id/usuario_id inválido")
+
     for sol in solicitudes:
-        if sol['id'] == solicitud_id:
-            if sol.get('estado') in ['pendiente', 'aceptada']:
-                sol['estado'] = 'cancelada'
-                sol['motivo_cancelacion'] = motivo
-                sol['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                _guardar_json(SOLICITUDES_FILE, solicitudes)
-                
-                print(f"❌ Solicitud #{solicitud_id} cancelada por usuario #{usuario_id}")
-                return True
-    
-    return False
+        try:
+            if int(sol.get("id", -1)) != sid:
+                continue
+        except Exception:
+            continue
+
+        pasajero_id = sol.get("pasajero_id")
+        conductor_id = sol.get("conductor_id")
+
+        # normalizar a int si vienen como str
+        try:
+            pasajero_id = int(pasajero_id) if pasajero_id is not None else None
+        except Exception:
+            pass
+        try:
+            conductor_id = int(conductor_id) if conductor_id is not None else None
+        except Exception:
+            pass
+
+        # Seguridad: solo dueño o conductor asignado
+        if uid not in [pasajero_id, conductor_id]:
+            return (False, "No autorizado para cancelar esta solicitud")
+
+        estado = (sol.get("estado") or "").lower()
+        estados_cancelables = ["pendiente", "aceptada", "confirmado"]  # agrega "en_curso" si quieres
+
+        if estado not in estados_cancelables:
+            return (False, f"No se puede cancelar en estado: {estado}")
+
+        quien = "pasajero" if uid == pasajero_id else "conductor"
+
+        sol["estado"] = f"cancelado_{quien}"
+        sol["motivo_cancelacion"] = motivo or ""
+        sol["fecha_actualizacion"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        conductor_prev = sol.get("conductor_id")
+        if conductor_prev:
+            sol["conductor_id_cancelado"] = conductor_prev
+            sol["cancelacion_notificada_conductor"] = False
+
+
+        # liberar asignación
+        sol["conductor_id"] = None
+        sol["precio_acordado"] = None
+
+        _guardar_json_atomic(str(SOLICITUDES_FILE), solicitudes)
+        return (True, sol)
+
+    return (False, "Solicitud no encontrada")
+
+
+def cancelar_solicitud(solicitud_id, usuario_id, motivo=""):
+    """
+    Compatibilidad: devuelve SOLO bool (para código antiguo).
+    """
+    ok, _payload = cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo)
+    return ok
+
 
 def obtener_ofertas_completas_pasajero(pasajero_id):
     """
@@ -599,6 +669,45 @@ def cancelar_viaje_conductor(conductor_id, solicitud_id, motivo=""):
         print(f"❌ Error cancelando viaje: {e}")
         return None
     
+def obtener_cancelaciones_pendientes_conductor(conductor_id: int):
+    """
+    Devuelve solicitudes canceladas por pasajero que pertenecían a este conductor.
+    Sirve para que el conductor "se entere" (alerta/limpieza en su UI).
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+
+        cid = int(conductor_id)
+
+        pendientes = []
+        for s in solicitudes:
+            estado = (s.get("estado") or "").lower()
+            if estado != "cancelado_pasajero":
+                continue
+
+            # Puede venir en conductor_id o en conductor_id_cancelado (recomendado)
+            c1 = s.get("conductor_id")
+            c2 = s.get("conductor_id_cancelado")
+
+            try:
+                c1 = int(c1) if c1 is not None else None
+            except:
+                pass
+            try:
+                c2 = int(c2) if c2 is not None else None
+            except:
+                pass
+
+            if cid in [c1, c2]:
+                s["tipo"] = "cancelacion"  # etiqueta útil para el frontend
+                pendientes.append(s)
+
+        return pendientes
+
+    except Exception as e:
+        print(f"❌ Error obteniendo cancelaciones pendientes conductor: {e}")
+        import traceback; traceback.print_exc()
+        return []
 
 
 def _leer_json(path):

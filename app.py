@@ -282,18 +282,64 @@ def buscar_viaje():
         return redirect(url_for('dashboard'))
     return render_template('buscar_viaje.html')
 
+# En app.py
+
 @app.route("/mis-viajes")
 @requiere_login
 def mis_viajes():
     if session.get('user_type') != 'pasajero':
-        flash("❌ Solo los pasajeros tienen historial de viajes", "error")
+        flash("❌ Solo los pasajeros pueden ver su viaje", "error")
         return redirect(url_for('dashboard'))
+
     pasajero_id = session['user_id']
-    historial_viajes = get_viajes_por_pasajero(pasajero_id)
-    for viaje in historial_viajes:
-        conductor = get_user_by_id_and_tipo(viaje.get("conductor_id"), "conductor")
-        viaje["conductor_nombre"] = conductor["nombre"] if conductor else "No disponible"
-    return render_template("mis-viajes.html", viajes=historial_viajes)
+
+    # ✅ Leer solicitudes (viajes) del sistema mejorado
+    from servicios.solicitudes_mejoradas import _leer_json, SOLICITUDES_FILE
+    solicitudes = _leer_json(SOLICITUDES_FILE)
+
+    # ✅ Estados que consideraremos "viaje activo / en proceso"
+    activos = [s for s in solicitudes
+               if s.get('pasajero_id') == pasajero_id
+               and s.get('estado') in ['aceptada', 'confirmado', 'en_curso']]
+
+    # Si no hay viaje activo, mostramos vacío
+    if not activos:
+        return render_template("mis-viajes.html", viajes=[])
+
+    # ✅ Elegir el más reciente (por fecha_actualizacion o fecha_creacion)
+    def _key_fecha(s):
+        return s.get("fecha_actualizacion") or s.get("fecha_creacion") or ""
+
+    activos.sort(key=_key_fecha, reverse=True)
+    viaje = activos[0]
+
+    # ✅ Normalizar campo "fecha" para que tu HTML actual no reviente
+    viaje["fecha"] = viaje.get("fecha_creacion") or viaje.get("fecha_actualizacion") or ""
+
+    # ✅ Enriquecer con datos del conductor (lo que tú querías)
+    conductor = get_user_by_id_and_tipo(viaje.get("conductor_id"), "conductor")
+    if conductor:
+        viaje["conductor_nombre"] = conductor.get("nombre", "Conductor")
+        viaje["conductor_telefono"] = conductor.get("telefono", "No disponible")
+        viaje["conductor_placa"] = conductor.get("placa", "---")
+        viaje["conductor_modelo"] = conductor.get("modelo", "Auto")
+        viaje["conductor_color"] = conductor.get("color", "")
+
+        # opcional: teléfono limpio para WA / tel:
+        import re
+        tel = re.sub(r"\D+", "", str(viaje["conductor_telefono"]))
+        viaje["conductor_telefono_clean"] = tel
+    else:
+        viaje["conductor_nombre"] = "Aún sin conductor"
+        viaje["conductor_telefono"] = ""
+        viaje["conductor_placa"] = ""
+        viaje["conductor_modelo"] = ""
+        viaje["conductor_color"] = ""
+        viaje["conductor_telefono_clean"] = ""
+
+    # ✅ Le pasamos una lista con 1 solo viaje (para no tocar tu template mucho)
+    return render_template("mis-viajes.html", viajes=[viaje])
+
 
 
 @app.route("/repetir-viaje")
@@ -304,7 +350,6 @@ def repetir_viaje():
     if not origen or not destino:
         return redirect(url_for('mis_viajes'))
     return redirect(url_for('buscar_viaje', origen=origen, destino=destino))
-
 
 @app.route("/crear-ruta")
 @requiere_login
@@ -902,30 +947,41 @@ def api_rechazar_contraoferta_pasajero():
     except Exception as e:
         print("❌ Error rechazando contraoferta:", e)
         return jsonify({"error": str(e)}), 500
-@app.post("/api/cancelar-solicitud")
-@requiere_login
-def api_cancelar_solicitud():
-    """
-    Cancela una solicitud (pasajero o conductor)
-    """
-    try:
-        data = request.get_json()
-        solicitud_id = data.get('solicitud_id')
-        motivo = data.get('motivo', '')
-        usuario_id = session['user_id']
-        
-        from servicios.solicitudes_mejoradas import cancelar_solicitud
-        resultado = cancelar_solicitud(solicitud_id, usuario_id, motivo)
-        
-        if resultado:
-            return jsonify({"ok": True}), 200
-        else:
-            return jsonify({"error": "No se pudo cancelar"}), 400
-            
-    except Exception as e:
-        print("❌ Error cancelando:", e)
-        return jsonify({"error": str(e)}), 500
     
+
+
+@app.post("/api/pasajero/cancelar-solicitud")
+@requiere_login
+def api_cancelar_solicitud_pasajero_alias():
+    return api_cancelar_viaje_pasajero()
+
+
+@app.post("/api/pasajero/cancelar-viaje")
+@requiere_login
+def api_cancelar_viaje_pasajero():
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"ok": False, "error": "Solo pasajeros"}), 403
+
+    try:
+        data = request.get_json() or {}
+        solicitud_id = data.get("solicitud_id")
+        motivo = data.get("motivo", "Cancelado por el pasajero")
+        pasajero_id = session["user_id"]
+
+        if not solicitud_id:
+            return jsonify({"ok": False, "error": "Falta solicitud_id"}), 400
+
+        from servicios.solicitudes_mejoradas import cancelar_solicitud_detalle
+        ok, payload = cancelar_solicitud_detalle(solicitud_id, pasajero_id, motivo)
+
+        if ok:
+            return jsonify({"ok": True, "viaje": payload}), 200
+        return jsonify({"ok": False, "error": payload}), 400
+
+    except Exception as e:
+        print("❌ Error cancelando viaje:", e)
+        import traceback; traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 
@@ -1179,8 +1235,10 @@ def api_calcular_distancia():
 def buscar_viajes():
     """
     Calcula la ruta y devuelve información al pasajero.
-    Si no existe ruta, usa fallback con distancia estimada.
-    Recalcula con Haversine si el grafo devuelve distancia==0 pero las coords reales difieren.
+    PRIORIDAD:
+    1. Grafo (Ruta exacta por nodos conocidos).
+    2. Haversine (Distancia lineal real basada en GPS).
+    3. Fallback (5.0 km solo si todo lo anterior falla).
     """
     try:
         import json
@@ -1191,10 +1249,10 @@ def buscar_viajes():
         if not origen_arg or not destino_arg:
             return jsonify({"error": "Faltan parámetros"}), 400
 
-        # Calcular ruta en grafo (puede recibir nombres o JSON string)
+        # 1. Intentar calcular ruta con el GRAFO (Nodos predefinidos)
         distancia, ruta = gestor_rutas.calcular_mejor_ruta(origen_arg, destino_arg)
 
-        # Helper para parsear argumento que puede venir como JSON-string o nombre/texto
+        # Helper para parsear coordenadas
         def _parse_arg(a):
             try:
                 if isinstance(a, str) and a.strip().startswith("{"):
@@ -1206,43 +1264,60 @@ def buscar_viajes():
         origen_pt = _parse_arg(origen_arg)
         destino_pt = _parse_arg(destino_arg)
 
-        # Si el grafo devolvió 0 (mismo nodo por nombre) pero las coords reales difieren,
-        # recalcular distancia usando Haversine y armar una ruta simple.
-        if (distancia == 0 or distancia == 0.0) and origen_pt and destino_pt:
-            lat_diff = abs(origen_pt["lat"] - destino_pt["lat"])
-            lng_diff = abs(origen_pt["lng"] - destino_pt["lng"])
-            if lat_diff > 1e-6 or lng_diff > 1e-6:
+        # 2. Lógica de Respaldo Inteligente (Haversine)
+        # Se activa si:
+        # A) El grafo devolvió infinito (no hay conexión o nodos desconocidos).
+        # B) El grafo devolvió 0 pero las coordenadas son diferentes (bug visual).
+        # C) La ruta está vacía.
+        
+        usar_haversine = False
+        
+        if distancia == float("inf") or not ruta:
+            usar_haversine = True
+        elif distancia == 0 or distancia == 0.0:
+            # Verificar si realmente son puntos distintos
+            if origen_pt and destino_pt:
+                lat_diff = abs(origen_pt["lat"] - destino_pt["lat"])
+                lng_diff = abs(origen_pt["lng"] - destino_pt["lng"])
+                if lat_diff > 1e-6 or lng_diff > 1e-6:
+                    usar_haversine = True
+
+        if usar_haversine:
+            # Intentamos calcular la distancia real con coordenadas
+            if origen_pt and destino_pt and "lat" in origen_pt and "lat" in destino_pt:
+                print(f"📍 Usando cálculo GPS directo para: {origen_arg} -> {destino_arg}")
                 distancia = calcular_distancia_haversine(
                     origen_pt["lat"], origen_pt["lng"],
                     destino_pt["lat"], destino_pt["lng"]
                 )
+                # Creamos una ruta simple de dos puntos para dibujar la línea
                 ruta = [origen_pt.get("nombre", "origen"), destino_pt.get("nombre", "destino")]
+            else:
+                # Solo si NO tenemos coordenadas, usamos el valor genérico
+                print(f"⚠️ Fallo total de ruta y coordenadas. Usando 5km por defecto.")
+                distancia = 5.0
+                ruta = [origen_arg, destino_arg]
 
-        # Fallback: si no hay ruta válida, usar una distancia genérica
-        if distancia == float("inf") or not ruta:
-            print(f"⚠️ Ruta no encontrada entre {origen_arg} y {destino_arg}. Usando estimación.")
-            distancia = 5.0  # valor genérico (km)
-            ruta = [origen_arg, destino_arg]
-
-        # Calcular precio y tiempo
+        # Calcular precio y tiempo (Esto aplica para grafo o haversine)
         from servicios.solicitudes_mejoradas import calcular_precio
         precio_estimado = round(calcular_precio(distancia), 2)
-        tiempo_estimado = round(distancia * 3, 1)
+        
+        # Estimación de tiempo: En tráfico de Lima ~3.5 mins por km (ajustable)
+        tiempo_estimado = round(distancia * 3.5, 0)
 
         return jsonify({
             "ok": True,
-            "distancia": distancia,
+            "distancia": round(distancia, 2),
             "ruta": ruta,
             "precio_estimado": precio_estimado,
             "tiempo_estimado": tiempo_estimado,
-            "mensaje": "Ruta estimada lista para solicitar"
+            "mensaje": "Ruta calculada exitosamente"
         }), 200
 
     except Exception as e:
         print("❌ Error en /api/buscar-viajes:", e)
         import traceback; traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
-
 
 # Agregar a app.py
 
@@ -1325,27 +1400,31 @@ def estado_viaje():
 # ============================================
 # ENDPOINTS PARA GESTIÓN DE VIAJES (CONDUCTOR)
 # ============================================
-
 @app.get("/api/conductor/mis-viajes-activos")
 @requiere_login
 def api_mis_viajes_activos_conductor():
-    """
-    Obtiene los viajes activos del conductor (confirmados, en curso, completados recientes)
-    """
     if session.get('user_type') != 'conductor':
         return jsonify({"error": "Solo conductores"}), 403
-    
+
     try:
-        conductor_id = session['user_id']
-        
-        from servicios.solicitudes_mejoradas import obtener_viajes_conductor
-        viajes = obtener_viajes_conductor(conductor_id)
-        
-        return jsonify(viajes), 200
-        
+        conductor_id = session["user_id"]
+
+        from servicios.solicitudes_mejoradas import (
+            obtener_viajes_conductor,
+            obtener_cancelaciones_pendientes_conductor,
+        )
+
+        viajes = obtener_viajes_conductor(conductor_id) or []
+        cancelaciones = obtener_cancelaciones_pendientes_conductor(conductor_id) or []
+
+        # Devuelve viajes activos + cancelaciones que el conductor debe ver
+        return jsonify(viajes + cancelaciones), 200
+
     except Exception as e:
         print(f"❌ Error obteniendo viajes activos: {e}")
+        import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.post("/api/conductor/iniciar-viaje")
