@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from servicios.usuarios_repo import _guardar_json_atomic  # ← AGREGAR ESTA LÍNEA
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
@@ -23,13 +24,34 @@ def _leer_json(path):
     return []
 
 def _guardar_json(path, data):
+    """
+    Guarda JSON de forma segura con escritura atómica
+    """
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as f:
+        
+        # Crear archivo temporal
+        temp_path = str(path) + '.tmp'
+        
+        # Escribir en temporal
+        with open(temp_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        # Mover atómicamente (reemplazar el original)
+        import shutil
+        shutil.move(temp_path, path)
+        
         return True
+        
     except Exception as e:
         print(f"❌ Error guardando {path}:", e)
+        # Limpiar temporal si existe
+        try:
+            temp_path = str(path) + '.tmp'
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+        except:
+            pass
         return False
 
 def calcular_precio(distancia_km):
@@ -233,32 +255,63 @@ def aceptar_solicitud_directa(conductor_id, solicitud_id):
 
 def pasajero_acepta_contraoferta(pasajero_id, contraoferta_id):
     """
-    El pasajero acepta una contraoferta específica
+    El pasajero acepta una contraoferta específica y el viaje queda CONFIRMADO.
     """
+    # 1) Cargar contraofertas y buscar la elegida
     contraofertas = _leer_json(CONTRAOFERTAS_FILE)
-    contraoferta = next((c for c in contraofertas if c['id'] == contraoferta_id), None)
-    
+
+    contraoferta = next(
+        (c for c in contraofertas if int(c.get('id', -1)) == int(contraoferta_id)),
+        None
+    )
+
     if not contraoferta or contraoferta.get('estado') != 'pendiente':
         return None
-    
-    # Actualizar contraoferta
-    contraoferta['estado'] = 'aceptada'
-    _guardar_json(CONTRAOFERTAS_FILE, contraofertas)
-    
-    # Actualizar solicitud
+
+    solicitud_id = contraoferta.get('solicitud_id')
+    conductor_id = contraoferta.get('conductor_id')
+    precio_ofrecido = contraoferta.get('precio_ofrecido')  # ✅ KEY CORRECTA
+
+    # 2) Cargar solicitudes y validar pertenencia
     solicitudes = _leer_json(SOLICITUDES_FILE)
-    for sol in solicitudes:
-        if sol['id'] == contraoferta['solicitud_id']:
-            sol['conductor_id'] = contraoferta['conductor_id']
-            sol['precio_acordado'] = contraoferta['precio_ofrecido']
-            sol['estado'] = 'aceptada'
-            sol['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            _guardar_json(SOLICITUDES_FILE, solicitudes)
-            
-            print(f"✅ Pasajero aceptó contraoferta #{contraoferta_id}, precio: S/. {contraoferta['precio_ofrecido']:.2f}")
-            return sol
-    
-    return None
+    sol = next((s for s in solicitudes if s.get('id') == solicitud_id), None)
+
+    if not sol:
+        return None
+
+    if sol.get('pasajero_id') != pasajero_id:
+        # Seguridad: no puede aceptar ofertas de otra solicitud ajena
+        return None
+
+    if sol.get('estado') != 'pendiente':
+        # Si ya no está pendiente, no debería aceptar contraofertas
+        return None
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 3) Actualizar solicitud (viaje)
+    sol['conductor_id'] = conductor_id
+    sol['precio_acordado'] = float(precio_ofrecido) if precio_ofrecido is not None else sol.get('precio_estandar')
+    sol['estado'] = 'confirmado'
+    sol['fecha_actualizacion'] = now
+    sol['fecha_confirmacion'] = now
+
+    # 4) Actualizar estados de contraofertas: aceptar una, rechazar las demás pendientes
+    for c in contraofertas:
+        if c.get('solicitud_id') == solicitud_id and c.get('estado') == 'pendiente':
+            c['estado'] = 'rechazada'
+            c['fecha_actualizacion'] = now
+
+    contraoferta['estado'] = 'aceptada'
+    contraoferta['fecha_actualizacion'] = now
+
+    # 5) Guardar atómico (más seguro)
+    _guardar_json_atomic(CONTRAOFERTAS_FILE, contraofertas)
+    _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
+
+    print(f"✅ ¡MATCH! Viaje #{sol['id']} confirmado por contraoferta. Precio: {sol['precio_acordado']}")
+    return sol
+
 
 def obtener_contraofertas_pasajero(solicitud_id):
     """
@@ -286,3 +339,284 @@ def cancelar_solicitud(solicitud_id, usuario_id, motivo=""):
                 return True
     
     return False
+
+def obtener_ofertas_completas_pasajero(pasajero_id):
+    """
+    Obtiene TODAS las ofertas para un pasajero:
+    - Contraofertas con precio personalizado (pendientes)
+    - Ofertas aceptadas directamente al precio estándar (estado='aceptada')
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        contraofertas_data = _leer_json(CONTRAOFERTAS_FILE)
+
+        # Encontrar solicitudes activas del pasajero (pendiente O aceptada)
+        mis_solicitudes_ids = {
+            s['id'] for s in solicitudes
+            if s.get('pasajero_id') == pasajero_id 
+            and s.get('estado') in ['pendiente', 'aceptada']
+        }
+
+        if not mis_solicitudes_ids:
+            return []
+
+        resultado = []
+
+        for sol in solicitudes:
+            if sol['id'] not in mis_solicitudes_ids:
+                continue
+
+            ofertas = []
+
+            # 1. Agregar contraofertas pendientes
+            contraofertas = [
+                c for c in contraofertas_data
+                if c.get('solicitud_id') == sol['id'] and c.get('estado') == 'pendiente'
+            ]
+
+            for contra in contraofertas:
+                from servicios.usuarios_repo import buscar_usuario_por_id
+                conductor = buscar_usuario_por_id(contra['conductor_id'], 'conductor')
+                if conductor:
+                    contra['conductor_nombre'] = conductor.get('nombre', 'Conductor')
+                    contra['conductor_vehiculo'] = f"{conductor.get('modelo', 'N/D')} {conductor.get('color', '')} - {conductor.get('placa', '')}"
+                    contra['conductor_telefono'] = conductor.get('telefono', 'N/A')
+                    contra['conductor_calificacion'] = 4.5
+                    contra['tipo_oferta'] = 'contraoferta'
+                    ofertas.append(contra)
+
+            # 2. Si la solicitud fue aceptada directamente, agregar como "oferta"
+            if sol.get('estado') == 'aceptada' and sol.get('conductor_id'):
+                from servicios.usuarios_repo import buscar_usuario_por_id
+                conductor = buscar_usuario_por_id(sol['conductor_id'], 'conductor')
+                
+                if conductor:
+                    oferta_directa = {
+                        'id': f"directa_{sol['id']}",
+                        'solicitud_id': sol['id'],
+                        'conductor_id': sol['conductor_id'],
+                        'conductor_nombre': conductor.get('nombre', 'Conductor'),
+                        'conductor_vehiculo': f"{conductor.get('modelo', 'N/D')} {conductor.get('color', '')} - {conductor.get('placa', '')}",
+                        'conductor_telefono': conductor.get('telefono', 'N/A'),
+                        'conductor_calificacion': 4.5,
+                        'precio_ofrecido': sol.get('precio_acordado') or sol.get('precio_estandar'),
+                        'mensaje': '✅ Este conductor aceptó tu solicitud al precio estándar',
+                        'tipo_oferta': 'aceptacion_directa',
+                        'estado': 'aceptada',
+                        'fecha_creacion': sol.get('fecha_actualizacion') or sol.get('fecha_creacion')
+                    }
+                    ofertas.append(oferta_directa)
+
+            if ofertas:
+                resultado.append({
+                    "solicitud": sol,
+                    "contraofertas": ofertas  # Mantener nombre "contraofertas" para compatibilidad
+                })
+
+        return resultado
+
+    except Exception as e:
+        print(f"❌ Error obteniendo ofertas completas: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+    
+
+def obtener_viajes_conductor(conductor_id):
+    """
+    Obtiene los viajes del conductor en diferentes estados:
+    - confirmado: El pasajero confirmó, listo para iniciar
+    - en_curso: Viaje iniciado por el conductor
+    - completado: Viaje finalizado
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        
+        viajes = [
+            s for s in solicitudes
+            if s.get('conductor_id') == conductor_id
+            and s.get('estado') in ['confirmado', 'en_curso', 'completado']
+        ]
+        
+        # Enriquecer con datos del pasajero
+        from servicios.usuarios_repo import buscar_usuario_por_id
+        for viaje in viajes:
+            pasajero = buscar_usuario_por_id(viaje['pasajero_id'], 'pasajero')
+            if pasajero:
+                viaje['pasajero_nombre'] = pasajero.get('nombre', 'Pasajero')
+                viaje['pasajero_telefono'] = pasajero.get('telefono', 'N/A')
+        
+        # Ordenar: primero confirmados, luego en_curso, luego completados
+        orden = {'confirmado': 0, 'en_curso': 1, 'completado': 2}
+        viajes.sort(key=lambda v: orden.get(v.get('estado'), 3))
+        
+        return viajes
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo viajes del conductor: {e}")
+        return []
+
+
+def iniciar_viaje_conductor(conductor_id, solicitud_id):
+    """
+    El conductor inicia un viaje confirmado
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        viaje_encontrado = False
+        
+        print(f"🔍 Buscando solicitud #{solicitud_id} para conductor #{conductor_id}")
+        
+        for i, sol in enumerate(solicitudes):
+            print(f"  - Revisando solicitud #{sol.get('id')}: estado={sol.get('estado')}, conductor={sol.get('conductor_id')}")
+            
+            if (sol.get('id') == solicitud_id 
+                and sol.get('conductor_id') == conductor_id
+                and sol.get('estado') == 'confirmado'):
+                
+                solicitudes[i]['estado'] = 'en_curso'
+                solicitudes[i]['fecha_inicio'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                viaje_encontrado = True
+                
+                print(f"✅ Viaje #{solicitud_id} iniciado. Nuevo estado: en_curso")
+                break
+        
+        if viaje_encontrado:
+            if _guardar_json(SOLICITUDES_FILE, solicitudes):
+                print(f"✅ Cambios guardados correctamente")
+                # Recargar para confirmar
+                solicitudes_verificar = _leer_json(SOLICITUDES_FILE)
+                viaje_actualizado = next((s for s in solicitudes_verificar if s.get('id') == solicitud_id), None)
+                if viaje_actualizado:
+                    print(f"✅ Verificación: Estado actual = {viaje_actualizado.get('estado')}")
+                    return viaje_actualizado
+            else:
+                print("❌ Error al guardar cambios")
+        else:
+            print(f"❌ Viaje no encontrado o no está en estado 'confirmado'")
+        
+        return None
+        
+    except Exception as e:
+        print(f"❌ Error iniciando viaje: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def finalizar_viaje_conductor(conductor_id, solicitud_id):
+    """
+    El conductor finaliza un viaje en curso
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        viaje_encontrado = False
+        
+        print(f"🔍 Buscando viaje en curso #{solicitud_id} para conductor #{conductor_id}")
+        
+        for i, sol in enumerate(solicitudes):
+            print(f"  - Revisando solicitud #{sol.get('id')}: estado={sol.get('estado')}, conductor={sol.get('conductor_id')}")
+            
+            if sol.get('id') == solicitud_id and sol.get('conductor_id') == conductor_id:
+                estado_actual = sol.get('estado')
+                print(f"  - Solicitud encontrada. Estado actual: {estado_actual}")
+                
+                if estado_actual == 'en_curso':
+                    solicitudes[i]['estado'] = 'completado'
+                    solicitudes[i]['fecha_fin'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # Calcular duración del viaje
+                    if sol.get('fecha_inicio'):
+                        try:
+                            inicio = datetime.strptime(sol['fecha_inicio'], "%Y-%m-%d %H:%M:%S")
+                            fin = datetime.strptime(solicitudes[i]['fecha_fin'], "%Y-%m-%d %H:%M:%S")
+                            duracion_minutos = (fin - inicio).total_seconds() / 60
+                            solicitudes[i]['duracion_minutos'] = round(duracion_minutos, 1)
+                            print(f"  - Duración calculada: {duracion_minutos:.1f} min")
+                        except Exception as e:
+                            print(f"  - Error calculando duración: {e}")
+                    
+                    viaje_encontrado = True
+                    print(f"✅ Viaje #{solicitud_id} finalizado. Nuevo estado: completado")
+                    break
+                else:
+                    print(f"❌ Viaje no está en curso (estado actual: {estado_actual})")
+                    return None
+        
+        if viaje_encontrado:
+            if _guardar_json(SOLICITUDES_FILE, solicitudes):
+                print(f"✅ Cambios guardados correctamente")
+                # Recargar para confirmar
+                solicitudes_verificar = _leer_json(SOLICITUDES_FILE)
+                viaje_actualizado = next((s for s in solicitudes_verificar if s.get('id') == solicitud_id), None)
+                if viaje_actualizado:
+                    print(f"✅ Verificación: Estado final = {viaje_actualizado.get('estado')}")
+                    return viaje_actualizado
+            else:
+                print("❌ Error al guardar cambios")
+        else:
+            print(f"❌ Viaje no encontrado")
+        
+        return None
+        
+    except Exception as e:
+        print(f"❌ Error finalizando viaje: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+
+def cancelar_viaje_conductor(conductor_id, solicitud_id, motivo=""):
+    """
+    El conductor cancela un viaje confirmado o en curso
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        
+        for sol in solicitudes:
+            if (sol.get('id') == solicitud_id 
+                and sol.get('conductor_id') == conductor_id
+                and sol.get('estado') in ['confirmado', 'en_curso']):
+                
+                sol['estado'] = 'cancelado_conductor'
+                sol['fecha_cancelacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                sol['motivo_cancelacion'] = motivo
+                sol['conductor_id'] = None  # Liberar para que otros conductores puedan tomar
+                sol['precio_acordado'] = None
+                
+                _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
+                
+                print(f"❌ Viaje #{solicitud_id} cancelado por conductor #{conductor_id}")
+                return sol
+        
+        return None
+        
+
+
+        
+    except Exception as e:
+        print(f"❌ Error cancelando viaje: {e}")
+        return None
+    
+
+
+def _leer_json(path):
+    try:
+        if os.path.exists(path):
+            # Si el archivo está vacío, devolver []
+            if os.path.getsize(path) == 0:
+                return []
+            with open(path, 'r', encoding='utf-8') as f:
+                contenido = f.read().strip()
+                if not contenido:
+                    return []
+                return json.loads(contenido)
+    except Exception as e:
+        print(f"⚠️ Error leyendo {path}: {e}")
+        # Intento de "auto-reparación": dejarlo como []
+        try:
+            _guardar_json(path, [])
+        except:
+            pass
+    return []

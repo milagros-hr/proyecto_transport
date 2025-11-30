@@ -1,11 +1,48 @@
 [
   {
     "id": 1,
-    "solicitud_id": 2,
-    "conductor_id": 2,
-    "precio_ofrecido": 17.5,
+    "solicitud_id": 1,
+    "conductor_id": 1,
+    "precio_ofrecido": 56.0,
     "mensaje": "",
-    "estado": "pendiente",
-    "fecha_creacion": "2025-11-07 23:36:01"
+    "estado": "aceptada",
+    "fecha_creacion": "2025-11-30 11:15:47"
+  },
+  {
+    "id": 2,
+    "solicitud_id": 2,
+    "conductor_id": 1,
+    "precio_ofrecido": 40.0,
+    "mensaje": "",
+    "estado": "aceptada",
+    "fecha_creacion": "2025-11-30 11:21:01"
+  },
+  {
+    "id": 3,
+    "solicitud_id": 3,
+    "conductor_id": 1,
+    "precio_ofrecido": 45.0,
+    "mensaje": "",
+    "estado": "aceptada",
+    "fecha_creacion": "2025-11-30 11:28:18"
+  },
+  {
+    "id": 4,
+    "solicitud_id": 2,
+    "conductor_id": 1,
+    "precio_ofrecido": 45.0,
+    "mensaje": "",
+    "estado": "aceptada",
+    "fecha_creacion": "2025-11-30 11:33:36"
+  },
+  {
+    "id": 5,
+    "solicitud_id": 3,
+    "conductor_id": 1,
+    "precio_ofrecido": 48.0,
+    "mensaje": "",
+    "estado": "aceptada",
+    "fecha_creacion": "2025-11-30 11:41:37",
+    "fecha_actualizacion": "2025-11-30 11:41:45"
   }
 ]

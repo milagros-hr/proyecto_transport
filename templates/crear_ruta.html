@@ -346,27 +346,49 @@
                 <h1><i class="fas fa-route"></i> Crear Ruta</h1>
                 <p class="subtitle">Solicitudes disponibles cerca de ti</p>
             </div>
+
+<div class="sidebar">
+
+
+
+    <div id="panelEspera" style="display: none; background: #fff3cd; padding: 1rem; border-bottom: 2px solid #ffd93d;">
+        <h3 style="font-size: 1rem; color: #856404; margin-bottom: 0.5rem;">
+            <i class="fas fa-hourglass-half"></i> Esperando respuesta...
+        </h3>
+        <div id="listaEspera">
+            </div>
+    </div>
+
+    <div style="padding: 1.5rem 1.5rem 0.5rem;">
+        <h2 style="font-size: 1.2rem; color: #333;">Solicitudes Disponibles</h2>
+    </div>
+
+    <div class="solicitudes" id="listaSolicitudes">
+        </div>
+</div>    
             
             <div class="controls">
-                <button class="btn btn-primary" id="btnUbicacion">
-                    <i class="fas fa-location-crosshairs"></i>
-                    Usar mi ubicación
-                </button>
+            <button class="btn btn-primary" id="btnUbicacion">
+                <i class="fas fa-location-crosshairs"></i>
+                Usar mi ubicación
+            </button>
 
-                <button class="btn btn-primary" id="btnSeleccionManual">
-                    <i class="fas fa-map-marker-alt"></i>
-                    Seleccionar ubicación manual
-                </button>
-
-                <button class="btn btn-primary" id="btnRefrescar">
-                    <i class="fas fa-sync-alt"></i>
-                    Actualizar solicitudes
-                </button>
-                <a href="/dashboard" class="btn btn-primary">
-                    <i class="fas fa-arrow-left"></i>
-                    Volver al Dashboard
-                </a>
-            </div>
+            <button class="btn btn-primary" id="btnSeleccionManual">
+                <i class="fas fa-map-marker-alt"></i>
+                Seleccionar ubicación manual
+            </button>
+            
+            <!-- NUEVO BOTÓN -->
+            <a href="/mis-viajes-conductor" class="btn btn-primary" style="text-decoration: none; text-align: center;">
+                <i class="fas fa-car"></i>
+                Ver Mis Viajes Activos
+            </a>
+            
+            <a href="/dashboard" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i>
+                Volver al Dashboard
+            </a>
+        </div>
 
         
             <div class="solicitudes" id="listaSolicitudes">

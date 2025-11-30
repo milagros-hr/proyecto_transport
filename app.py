@@ -237,29 +237,36 @@ def login():
 
 
 
-
 @app.route("/dashboard")
 @requiere_login
 def dashboard():
-    # Usa el tipo guardado en sesión para evitar confusiones por IDs repetidos
     tipo = session.get('user_type', 'pasajero')
     usuario_actual = get_user_by_id_and_tipo(session['user_id'], tipo)
     if not usuario_actual:
         session.clear()
         flash("❌ Sesión inválida. Inicia sesión nuevamente.", "error")
         return redirect(url_for('login'))
+    
     stats = obtener_estadisticas()
     conteo_ofertas = 0
+    conteo_viajes_pendientes = 0
+    
     if tipo == 'pasajero':
         from servicios.solicitudes_mejoradas import contar_contraofertas_pendientes_pasajero
         conteo_ofertas = contar_contraofertas_pendientes_pasajero(session['user_id'])
+    
+    if tipo == 'conductor':
+        from servicios.solicitudes_mejoradas import obtener_viajes_conductor
+        viajes = obtener_viajes_conductor(session['user_id'])
+        conteo_viajes_pendientes = len([v for v in viajes if v.get('estado') in ['confirmado', 'en_curso']])
+    
     return render_template(
         "dashboard.html",
         usuario=usuario_actual,
         stats=stats,
-        conteo_ofertas=conteo_ofertas  # <-- Pasar la variable
+        conteo_ofertas=conteo_ofertas,
+        conteo_viajes_pendientes=conteo_viajes_pendientes
     )
-
 @app.route("/logout")
 def logout():
     user_name = session.get('user_name', 'Usuario')
@@ -784,7 +791,7 @@ def api_mis_viajes_conductor():
 @requiere_login
 def api_contraofertas_pasajero():
     """
-    Pasajero ve las contraofertas recibidas para sus solicitudes
+    Pasajero ve las contraofertas recibidas Y las aceptaciones directas
     """
     if session.get('user_type') != 'pasajero':
         return jsonify({"error": "Solo pasajeros"}), 403
@@ -792,40 +799,52 @@ def api_contraofertas_pasajero():
     try:
         pasajero_id = session['user_id']
         
-        from servicios.solicitudes_mejoradas import (
-            _leer_json, SOLICITUDES_FILE, obtener_contraofertas_pasajero
-        )
-        
-        # Obtener solicitudes activas del pasajero
-        solicitudes = _leer_json(SOLICITUDES_FILE)
-        mis_solicitudes = [s for s in solicitudes 
-                          if s['pasajero_id'] == pasajero_id 
-                          and s['estado'] == 'pendiente']
-        
-        resultado = []
-        for sol in mis_solicitudes:
-            contraofertas = obtener_contraofertas_pasajero(sol['id'])
-            
-            # Enriquecer con datos del conductor
-            from servicios.usuarios_repo import buscar_usuario_por_id
-            for contra in contraofertas:
-                conductor = buscar_usuario_por_id(contra['conductor_id'], 'conductor')
-                if conductor:
-                    contra['conductor_nombre'] = conductor.get('nombre', 'Conductor')
-                    contra['conductor_vehiculo'] = f"{conductor.get('modelo', 'N/D')} - {conductor.get('placa', '')}"
-                    contra['conductor_calificacion'] = 4.5  # Placeholder
-            
-            if contraofertas:
-                resultado.append({
-                    "solicitud": sol,
-                    "contraofertas": contraofertas
-                })
+        from servicios.solicitudes_mejoradas import obtener_ofertas_completas_pasajero
+        resultado = obtener_ofertas_completas_pasajero(pasajero_id)
         
         return jsonify(resultado), 200
         
     except Exception as e:
         print("❌ Error obteniendo contraofertas:", e)
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+@app.post("/api/pasajero/confirmar-viaje-directo")
+@requiere_login
+def api_confirmar_viaje_directo():
+    """
+    Pasajero confirma un viaje que fue aceptado directamente por el conductor
+    """
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        pasajero_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import _leer_json, SOLICITUDES_FILE, _guardar_json_atomic
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        
+        for sol in solicitudes:
+            if sol.get('id') == solicitud_id and sol.get('pasajero_id') == pasajero_id:
+                if sol.get('estado') == 'aceptada':
+                    sol['estado'] = 'confirmado'
+                    sol['fecha_confirmacion_pasajero'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
+                    
+                    return jsonify({
+                        "ok": True,
+                        "mensaje": "Viaje confirmado. El conductor puede iniciar el recorrido."
+                    }), 200
+        
+        return jsonify({"error": "Viaje no encontrado o ya confirmado"}), 404
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 
 @app.post("/api/pasajero/aceptar-contraoferta")
@@ -852,6 +871,8 @@ def api_aceptar_contraoferta():
             
     except Exception as e:
         print("❌ Error aceptando contraoferta:", e)
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
@@ -907,41 +928,6 @@ def api_cancelar_solicitud():
     
 
 
-
-
-@app.post("/api/conductor/finalizar-viaje")
-@requiere_login
-def api_finalizar_viaje():
-    """El conductor finaliza el viaje"""
-    if session.get('user_type') != 'conductor':
-        return jsonify({"error": "Solo conductores"}), 403
-    
-    try:
-        data = request.get_json(force=True)
-        viaje_id = data.get('viaje_id')
-        
-        from servicios.solicitudes_mejoradas import _leer_json, VIAJES_FILE, _guardar_json_atomic
-        viajes = _leer_json(VIAJES_FILE)
-        viaje_encontrado = False
-        
-        for viaje in viajes:
-            if viaje.get('id') == viaje_id and viaje.get('conductor_id') == session['user_id']:
-                if viaje.get('estado') == 'en_curso':
-                    viaje['estado'] = 'completado'
-                    viaje['hora_fin'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    viaje_encontrado = True
-                    break
-        
-        if viaje_encontrado:
-            _guardar_json_atomic(VIAJES_FILE, viajes)
-            return jsonify({"ok": True, "mensaje": "Viaje completado"}), 200
-        else:
-            return jsonify({"error": "Viaje no encontrado o no está en curso"}), 404
-            
-    except Exception as e:
-        print(f"❌ Error en /api/conductor/finalizar-viaje: {e}")
-        return jsonify({"error": str(e)}), 500
-    
 
 @app.get("/api/solicitudes_cercanas")
 @requiere_login
@@ -1256,6 +1242,275 @@ def buscar_viajes():
         print("❌ Error en /api/buscar-viajes:", e)
         import traceback; traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# Agregar a app.py
+
+@app.get("/api/pasajero/viaje-activo")
+@requiere_login
+def api_viaje_activo_pasajero():
+    """Obtiene el viaje activo del pasajero"""
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        pasajero_id = session['user_id']
+        from servicios.estados_viaje import obtener_viajes_activos_pasajero
+        
+        viajes_activos = obtener_viajes_activos_pasajero(pasajero_id)
+        
+        if not viajes_activos:
+            return jsonify({"error": "No hay viaje activo"}), 404
+        
+        # Obtener el más reciente
+        viaje = viajes_activos[0]
+        
+        # Enriquecer con info del conductor
+        if viaje.get('conductor_id'):
+            conductor = get_user_by_id_and_tipo(viaje['conductor_id'], 'conductor')
+            viaje['conductor_info'] = conductor
+        
+        return jsonify(viaje), 200
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/pasajero/confirmar-llegada")
+@requiere_login
+def api_confirmar_llegada():
+    """El pasajero confirma que llegó a su destino"""
+    if session.get('user_type') != 'pasajero':
+        return jsonify({"error": "Solo pasajeros"}), 403
+    
+    try:
+        data = request.get_json()
+        viaje_id = data.get('viaje_id')
+        pasajero_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import _leer_json, SOLICITUDES_FILE, _guardar_json_atomic
+        from servicios.estados_viaje import GestorEstados
+        
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        
+        for viaje in solicitudes:
+            if viaje.get('id') == viaje_id and viaje.get('pasajero_id') == pasajero_id:
+                if GestorEstados.actualizar_estado(
+                    viaje, 'completado', pasajero_id, 'Pasajero confirmó llegada'
+                ):
+                    viaje['fecha_fin'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
+                    return jsonify({"ok": True}), 200
+        
+        return jsonify({"error": "Viaje no encontrado"}), 404
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/estado-viaje")
+@requiere_login
+def estado_viaje():
+    """Vista HTML del estado del viaje"""
+    if session.get('user_type') != 'pasajero':
+        flash("❌ Solo los pasajeros pueden ver el estado del viaje", "error")
+        return redirect(url_for('dashboard'))
+    
+    return render_template('estado_viaje.html')
+
+
+
+# ============================================
+# ENDPOINTS PARA GESTIÓN DE VIAJES (CONDUCTOR)
+# ============================================
+
+@app.get("/api/conductor/mis-viajes-activos")
+@requiere_login
+def api_mis_viajes_activos_conductor():
+    """
+    Obtiene los viajes activos del conductor (confirmados, en curso, completados recientes)
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        conductor_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import obtener_viajes_conductor
+        viajes = obtener_viajes_conductor(conductor_id)
+        
+        return jsonify(viajes), 200
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo viajes activos: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/conductor/iniciar-viaje")
+@requiere_login
+def api_iniciar_viaje():
+    """
+    El conductor inicia un viaje confirmado
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        conductor_id = session['user_id']
+        
+        print(f"📥 Solicitud de iniciar viaje #{solicitud_id} por conductor #{conductor_id}")
+        
+        from servicios.solicitudes_mejoradas import iniciar_viaje_conductor
+        resultado = iniciar_viaje_conductor(conductor_id, solicitud_id)
+        
+        if resultado:
+            return jsonify({
+                "ok": True,
+                "viaje": resultado,
+                "mensaje": "Viaje iniciado correctamente"
+            }), 200
+        else:
+            return jsonify({
+                "ok": False,
+                "error": "No se pudo iniciar el viaje. Verifica que esté en estado 'confirmado'."
+            }), 400
+            
+    except Exception as e:
+        print(f"❌ Error en endpoint iniciar-viaje: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/conductor/finalizar-viaje")
+@requiere_login
+def api_finalizar_viaje_conductor():
+    """
+    El conductor finaliza un viaje en curso
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        conductor_id = session['user_id']
+        
+        print(f"📥 Solicitud de finalizar viaje #{solicitud_id} por conductor #{conductor_id}")
+        
+        from servicios.solicitudes_mejoradas import finalizar_viaje_conductor
+        resultado = finalizar_viaje_conductor(conductor_id, solicitud_id)
+        
+        if resultado:
+            return jsonify({
+                "ok": True,
+                "viaje": resultado,
+                "mensaje": "Viaje completado exitosamente"
+            }), 200
+        else:
+            return jsonify({
+                "ok": False,
+                "error": "No se pudo finalizar el viaje. Debe estar en estado 'en_curso'."
+            }), 404
+            
+    except Exception as e:
+        print(f"❌ Error en endpoint finalizar-viaje: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+@app.post("/api/conductor/cancelar-viaje")
+@requiere_login
+def api_cancelar_viaje_conductor():
+    """
+    El conductor cancela un viaje
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        motivo = data.get('motivo', '')
+        conductor_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import cancelar_viaje_conductor
+        resultado = cancelar_viaje_conductor(conductor_id, solicitud_id, motivo)
+        
+        if resultado:
+            return jsonify({
+                "ok": True,
+                "mensaje": "Viaje cancelado"
+            }), 200
+        else:
+            return jsonify({"error": "No se pudo cancelar el viaje"}), 400
+            
+    except Exception as e:
+        print(f"❌ Error cancelando viaje: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/mis-viajes-conductor")
+@requiere_login
+def mis_viajes_conductor():
+    """Vista de gestión de viajes para conductores"""
+    if session.get('user_type') != 'conductor':
+        flash("❌ Solo los conductores pueden acceder a esta página", "error")
+        return redirect(url_for('dashboard'))
+    
+    return render_template('mis-viajes-conductor.html')
+
+@app.get("/api/conductor/mis-ofertas-pendientes")
+@requiere_login
+def api_conductor_mis_ofertas_pendientes():
+    """
+    Devuelve las contraofertas que ESTE conductor envió y que aún están en estado 'pendiente'.
+    (Esto elimina el 404 que te aparece en consola.)
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+
+    try:
+        conductor_id = session['user_id']
+
+        from servicios.solicitudes_mejoradas import _leer_json, CONTRAOFERTAS_FILE, SOLICITUDES_FILE
+        contraofertas = _leer_json(CONTRAOFERTAS_FILE)
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+
+        sol_by_id = {s.get("id"): s for s in solicitudes}
+
+        mis = [
+            c for c in contraofertas
+            if c.get("conductor_id") == conductor_id and c.get("estado") == "pendiente"
+        ]
+
+        from servicios.usuarios_repo import buscar_usuario_por_id
+
+        resultado = []
+        for c in mis:
+            item = dict(c)
+            sol = sol_by_id.get(c.get("solicitud_id"))
+            if sol:
+                item["solicitud"] = sol
+                pasajero = buscar_usuario_por_id(sol.get("pasajero_id"), "pasajero")
+                if pasajero:
+                    item["pasajero_nombre"] = pasajero.get("nombre", "Pasajero")
+                    item["pasajero_telefono"] = pasajero.get("telefono", "N/A")
+
+            resultado.append(item)
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        print("❌ Error en /api/conductor/mis-ofertas-pendientes:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 

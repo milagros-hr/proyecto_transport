@@ -4,6 +4,8 @@ let solicitudMarkers = [];
 let ubicacionConductor = null;
 let solicitudSeleccionada = null;
 let solicitudes = [];
+let intervaloActualizacion = null; // Variable para el reloj de 5 seg ⏱️
+let watchId = null; // Variable para el rastro del GPS 📡
 
 const carIcon = L.icon({
     iconUrl: 'https://static.thenounproject.com/png/331565-200.png',
@@ -16,12 +18,13 @@ const passengerIcon = L.icon({
     iconSize: [30, 30],
     iconAnchor: [17, 17]
 });
+
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     initMap();
     bindEvents();
-    console.log('🚗 Vista conductor inicializada');
+    console.log('🚗 Vista conductor inicializada (Modo Automático)');
 }
 
 function initMap() {
@@ -37,123 +40,212 @@ function initMap() {
 }
 
 function bindEvents() {
-    document.getElementById('btnUbicacion').addEventListener('click', obtenerUbicacion);
-    document.getElementById('btnRefrescar').addEventListener('click', cargarSolicitudes);
-    document.getElementById('formContraoferta').addEventListener('submit', enviarContraoferta);
-    document.getElementById('btnSeleccionManual').addEventListener('click', activarSeleccionManual);
+    // Listener para GPS
+    const btnUbicacion = document.getElementById('btnUbicacion');
+    if (btnUbicacion) {
+        btnUbicacion.addEventListener('click', activarGPSyAutoRefresco);
+    }
 
+    // Listener para Selección Manual
+    const btnManual = document.getElementById('btnSeleccionManual');
+    if (btnManual) {
+        btnManual.addEventListener('click', activarSeleccionManual);
+    }
+
+    // Listener para el formulario de contraoferta
+    const formContra = document.getElementById('formContraoferta');
+    if (formContra) {
+        formContra.addEventListener('submit', enviarContraoferta);
+    }
 }
 
-function obtenerUbicacion() {
-    const btn = document.getElementById('btnUbicacion');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo...';
+// =====================================================
+// 1. LÓGICA DE UBICACIÓN Y AUTO-REFRESCO
+// =====================================================
 
+// Opción A: Usar GPS del dispositivo
+function activarGPSyAutoRefresco() {
+    const btn = document.getElementById('btnUbicacion');
+    
     if (!navigator.geolocation) {
-        alert('Tu navegador no soporta geolocalización. Puedes seleccionar tu ubicación manualmente.');
-        activarSeleccionManual();
-        resetButton(btn);
+        alert('Tu navegador no soporta geolocalización. Usa la selección manual.');
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    // Feedback visual en el botón
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-satellite-dish fa-pulse"></i> GPS Activo';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+
+    // Desactivar eventos de click manual si estaban activos
+    map.off('click');
+
+    // Usamos watchPosition para rastreo continuo
+    watchId = navigator.geolocation.watchPosition(
         (position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-
-            ubicacionConductor = { lat, lng };
-
-            if (conductorMarker) {
-                conductorMarker.setLatLng([lat, lng]);
-            } else {
-                conductorMarker = L.marker([lat, lng], { icon: carIcon })
-                    .addTo(map)
-                    .bindPopup('🚗 Tu ubicación')
-                    .openPopup();
-            }
-
-            map.setView([lat, lng], 14);
-            cargarSolicitudes();
-
-            btn.innerHTML = '<i class="fas fa-check"></i> Ubicación obtenida';
-            setTimeout(() => resetButton(btn), 2000);
+            
+            actualizarPosicionConductor(lat, lng);
         },
         (error) => {
-            alert('No se pudo obtener tu ubicación. Puedes seleccionarla manualmente.');
-            console.error(error);
-            activarSeleccionManual();  // ← Aquí está el respaldo
-            resetButton(btn);
+            console.error("Error GPS:", error);
+            alert('No se pudo obtener la señal GPS. Intenta manual.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Usar mi ubicación';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, maximumAge: 0 }
     );
-}
-function resetButton(btn) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Usar mi ubicación';
-}
-function formatHoraViaje(hora_seleccionada, fecha_partida_str) {
-    if (hora_seleccionada === 'ahora' || !fecha_partida_str) {
-        return '<strong style="color: #4caf50;">Ahora</strong>';
-    }
 
-    try {
-        const ahora = new Date();
-        const partida = new Date(fecha_partida_str.replace(" ", "T")); // Formato ISO
-
-        // Diferencia en milisegundos
-        const diffMs = partida - ahora;
-
-        if (diffMs <= 0) {
-            return '<strong style="color: #f44336;">Recogida Inmediata (Atrasado)</strong>';
-        }
-
-        const diffMin = Math.round(diffMs / 60000); // Milisegundos a minutos
-
-        if (diffMin <= 5) {
-            return '<strong style="color: #ff9800;">En ~5 min</strong>';
-        }
-
-        return `En ${diffMin} min (aprox)`;
-
-    } catch (e) {
-        // Fallback si la fecha es inválida
-        if (hora_seleccionada === '30_min') return 'En 30 min';
-        if (hora_seleccionada === '60_min') return 'En 1 hora';
-        return 'Ahora';
-    }
+    // ¡Iniciar el bucle de 5 segundos!
+    iniciarCicloDeActualizacion();
 }
 
+// Opción B: Seleccionar en el mapa manualmente
 function activarSeleccionManual() {
-    alert('Haz clic en el mapa para seleccionar tu ubicación manualmente.');
+    alert('Haz clic en el mapa para establecer tu ubicación.');
 
+    // Si el GPS estaba activo, lo apagamos para no causar conflictos
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        
+        // Resetear botón de GPS visualmente
+        const btnGPS = document.getElementById('btnUbicacion');
+        if (btnGPS) {
+            btnGPS.disabled = false;
+            btnGPS.innerHTML = '<i class="fas fa-location-crosshairs"></i> Usar mi ubicación';
+            btnGPS.classList.remove('btn-success');
+            btnGPS.classList.add('btn-primary');
+        }
+    }
+
+    // Escuchar un click en el mapa
     map.once('click', function(e) {
         const { lat, lng } = e.latlng;
-        ubicacionConductor = { lat, lng };
-
-        // Crear o actualizar el marcador
-        if (conductorMarker) {
-            conductorMarker.setLatLng([lat, lng]);
-        } else {
-            conductorMarker = L.marker([lat, lng], { icon: carIcon })
-                .addTo(map)
-                .bindPopup('🚗 Ubicación seleccionada')
-                .openPopup();
-        }
-
-        map.setView([lat, lng], 14);
-
-        cargarSolicitudes();
+        actualizarPosicionConductor(lat, lng);
+        
+        // ¡Iniciar el bucle de 5 segundos también aquí!
+        iniciarCicloDeActualizacion();
     });
 }
-async function cargarSolicitudes() {
-    if (!ubicacionConductor) {
-        alert('Primero activa tu ubicación');
-        return;
-    }
 
-    const btn = document.getElementById('btnRefrescar');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+// Función auxiliar para mover el marcador del auto
+function actualizarPosicionConductor(lat, lng) {
+    ubicacionConductor = { lat, lng };
+
+    if (conductorMarker) {
+        conductorMarker.setLatLng([lat, lng]);
+    } else {
+        conductorMarker = L.marker([lat, lng], { icon: carIcon })
+            .addTo(map)
+            .bindPopup('<b>🚗 Tu ubicación</b>')
+            .openPopup();
+        map.setView([lat, lng], 15); // Centrar mapa la primera vez
+    }
+}
+
+// El motor del relojito ⏱️
+function iniciarCicloDeActualizacion() {
+    // 1. Carga inmediata para no esperar
+    cargarSolicitudes(true);
+    verificarMisOfertas();
+
+    // 2. Limpiar si ya existía uno previo
+    if (intervaloActualizacion) clearInterval(intervaloActualizacion);
+
+    // 3. Configurar para que se ejecute cada 5000ms (5 segundos)
+    intervaloActualizacion = setInterval(() => {
+        cargarSolicitudes(true); // true = modo silencioso
+        verificarMisOfertas(); 
+    }, 5000);
+
+   
+    console.log("✅ Búsqueda automática activada (cada 5s)");
+}
+
+// 2. AGREGA esta función nueva al final del archivo
+async function verificarMisOfertas() {
+    try {
+        const res = await fetch('/api/conductor/mis-ofertas-pendientes', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        
+        const data = await res.json();
+        
+        // A) ¡MATCH! El pasajero confirmó -> Redirigir al mapa de viaje
+        if (data.confirmados && data.confirmados.length > 0) {
+            // Sonido de notificación opcional o alerta
+            alert(`🎉 ¡Pasajero confirmado! Redirigiendo al viaje...`);
+            window.location.href = '/mis-viajes-conductor'; 
+            return;
+        }
+
+        // B) Renderizar la lista de espera visual
+        const panel = document.getElementById('panelEspera');
+        const lista = document.getElementById('listaEspera');
+        
+        // Juntamos ofertas manuales y aceptaciones directas
+        const totalPendientes = (data.pendientes || []).length + (data.aceptadas_esperando || []).length;
+
+        if (totalPendientes > 0) {
+            panel.style.display = 'block';
+            let html = '';
+
+            // 1. Contraofertas (Precio personalizado)
+            if (data.pendientes) {
+                data.pendientes.forEach(oferta => {
+                    html += `
+                        <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #ffeeba; font-size: 0.9rem;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                                <strong>Oferta enviada</strong>
+                                <span style="color:#ff9800; font-weight:700;">S/. ${oferta.precio_ofrecido.toFixed(2)}</span>
+                            </div>
+                            <small style="color: #856404;"><i class="fas fa-user"></i> Esperando al pasajero...</small>
+                        </div>
+                    `;
+                });
+            }
+
+            // 2. Aceptaciones directas (Precio estándar)
+            if (data.aceptadas_esperando) {
+                data.aceptadas_esperando.forEach(sol => {
+                    html += `
+                        <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #c3e6cb; border-left: 4px solid #28a745; font-size: 0.9rem;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                                <strong>Aceptaste por</strong>
+                                <span style="color:#28a745; font-weight:700;">S/. ${sol.precio_acordado.toFixed(2)}</span>
+                            </div>
+                            <small style="color: #155724;"><i class="fas fa-check"></i> Confirmando inicio...</small>
+                        </div>
+                    `;
+                });
+            }
+
+            lista.innerHTML = html;
+        } else {
+            panel.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error("Error verificando ofertas:", error);
+    }
+}
+
+
+
+
+// =====================================================
+// 2. CARGA DE DATOS (API)
+// =====================================================
+
+async function cargarSolicitudes(modoSilencioso = false) {
+    if (!ubicacionConductor) return;
+
+    // Si NO es modo silencioso (ej. carga manual), podrías poner un loading si quisieras.
+    // Pero como es automático, mejor no tocamos el DOM para que no parpadee.
 
     try {
         const url = `/api/conductor/solicitudes-cercanas?lat=${ubicacionConductor.lat}&lng=${ubicacionConductor.lng}&radio=10`;
@@ -161,26 +253,25 @@ async function cargarSolicitudes() {
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        solicitudes = await res.json();
+        const nuevasSolicitudes = await res.json();
+        solicitudes = nuevasSolicitudes;
 
-        console.log(`📍 ${solicitudes.length} solicitudes encontradas`);
+        if (!modoSilencioso) {
+            console.log(`📍 ${solicitudes.length} solicitudes encontradas`);
+        }
 
         renderizarSolicitudes();
         dibujarMarcadores();
 
-        btn.innerHTML = '<i class="fas fa-check"></i> Actualizado';
-        setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar solicitudes';
-            btn.disabled = false;
-        }, 1500);
-
     } catch (error) {
         console.error('❌ Error cargando solicitudes:', error);
-        alert('Error al cargar solicitudes');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar solicitudes';
-        btn.disabled = false;
+        // No mostramos alert en modo automático para no interrumpir
     }
 }
+
+// =====================================================
+// 3. RENDERIZADO Y MAPA (Tu código original preservado)
+// =====================================================
 
 function renderizarSolicitudes() {
     const container = document.getElementById('listaSolicitudes');
@@ -189,7 +280,8 @@ function renderizarSolicitudes() {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-inbox"></i>
-                <p>No hay solicitudes disponibles en tu área</p>
+                <p>Buscando pasajeros cercanos...</p>
+                <small style="color: #4caf50;">Actualizando automáticamente <i class="fas fa-sync fa-spin"></i></small>
             </div>
         `;
         return;
@@ -197,8 +289,9 @@ function renderizarSolicitudes() {
 
     container.innerHTML = solicitudes.map(sol => {
         const distConductor = sol.distancia_conductor || 0;
-        const tiempoEstimado = Math.round(sol.distancia * 3); // Aproximado: 3 min por km
+        const tiempoEstimado = Math.round(sol.distancia * 3); 
         const horaViajeTexto = formatHoraViaje(sol.hora_seleccionada, sol.fecha_partida_estimada);
+        
         return `
             <div class="solicitud-card" onclick="verDetalles(${sol.id})">
                 <div class="solicitud-header">
@@ -226,7 +319,7 @@ function renderizarSolicitudes() {
                         <i class="fas fa-clock"></i>
                         <span><strong>Recoger:</strong> ${horaViajeTexto}</span>
                     </div>
-                    <div. class="info-row">
+                    <div class="info-row">
                         <i class="fas fa-location-arrow"></i>
                         <span class="distancia-badge">A ${distConductor.toFixed(1)} km de ti</span>
                     </div>
@@ -245,8 +338,26 @@ function renderizarSolicitudes() {
     }).join('');
 }
 
+function formatHoraViaje(hora_seleccionada, fecha_partida_str) {
+    if (hora_seleccionada === 'ahora' || !fecha_partida_str) {
+        return '<strong style="color: #4caf50;">Ahora</strong>';
+    }
+    try {
+        const ahora = new Date();
+        const partida = new Date(fecha_partida_str.replace(" ", "T"));
+        const diffMs = partida - ahora;
+        if (diffMs <= 0) return '<strong style="color: #f44336;">Inmediata</strong>';
+        const diffMin = Math.round(diffMs / 60000);
+        if (diffMin <= 5) return '<strong style="color: #ff9800;">En ~5 min</strong>';
+        return `En ${diffMin} min`;
+    } catch (e) {
+        if (hora_seleccionada === '30_min') return 'En 30 min';
+        if (hora_seleccionada === '60_min') return 'En 1 hora';
+        return 'Ahora';
+    }
+}
+
 function dibujarMarcadores() {
-    // Limpiar marcadores anteriores
     solicitudMarkers.forEach(m => map.removeLayer(m));
     solicitudMarkers = [];
 
@@ -265,29 +376,23 @@ function dibujarMarcadores() {
             solicitudMarkers.push(marker);
         }
     });
-
-    // Ajustar vista para mostrar todos los marcadores
-    if (solicitudMarkers.length > 0 && conductorMarker) {
-        const group = L.featureGroup([conductorMarker, ...solicitudMarkers]);
-        map.fitBounds(group.getBounds(), { padding: [50, 50] });
-    }
+    
+    // No ajustamos la vista automáticamente siempre para no marear al conductor si está moviendo el mapa
 }
 
 function verDetalles(solicitudId) {
     const sol = solicitudes.find(s => s.id === solicitudId);
     if (!sol) return;
-
-    // Centrar mapa en el origen
     if (sol.origen && sol.origen.lat && sol.origen.lng) {
         map.setView([sol.origen.lat, sol.origen.lng], 15);
     }
-
     console.log('📋 Detalles solicitud:', sol);
 }
 
 // =========================================
-// ACEPTAR DIRECTAMENTE
+// ACEPTAR Y CONTRAOFERTAR (Sin cambios)
 // =========================================
+
 async function aceptarDirecto(solicitudId) {
     if (!confirm('¿Aceptar esta solicitud con el precio estándar?')) return;
 
@@ -300,12 +405,11 @@ async function aceptarDirecto(solicitudId) {
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
         const data = await res.json();
 
         if (data.ok) {
-            alert('✅ ¡Solicitud aceptada! El pasajero recibirá una notificación.');
-            cargarSolicitudes(); // Recargar lista
+            alert('✅ ¡Solicitud aceptada! Ve a "Mis Viajes Activos" para iniciarla.');
+            cargarSolicitudes(true); // Recargar inmediato
         } else {
             alert('❌ ' + (data.error || 'Error al aceptar'));
         }
@@ -321,11 +425,9 @@ function abrirContraoferta(solicitudId) {
     if (!sol) return;
 
     solicitudSeleccionada = sol;
-
     document.getElementById('precioOriginal').textContent = `S/. ${sol.precio_estandar.toFixed(2)}`;
     document.getElementById('precioOfrecido').value = sol.precio_estandar.toFixed(2);
     document.getElementById('mensaje').value = '';
-
     document.getElementById('modalContraoferta').classList.add('active');
 }
 
@@ -336,7 +438,6 @@ function cerrarModal() {
 
 async function enviarContraoferta(e) {
     e.preventDefault();
-
     if (!solicitudSeleccionada) return;
 
     const precioOfrecido = parseFloat(document.getElementById('precioOfrecido').value);
@@ -360,13 +461,12 @@ async function enviarContraoferta(e) {
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
         const data = await res.json();
 
         if (data.ok) {
             alert('✅ ¡Contraoferta enviada! El pasajero la verá en su app.');
             cerrarModal();
-            cargarSolicitudes();
+            cargarSolicitudes(true);
         } else {
             alert('❌ ' + (data.error || 'Error al enviar'));
         }
@@ -378,11 +478,11 @@ async function enviarContraoferta(e) {
 }
 
 // Click fuera del modal para cerrar
-document.getElementById('modalContraoferta').addEventListener('click', (e) => {
-    if (e.target.id === 'modalContraoferta') {
-        cerrarModal();
-    }
-});
-
-
-
+const modal = document.getElementById('modalContraoferta');
+if (modal) {
+    modal.addEventListener('click', (e) => {
+        if (e.target.id === 'modalContraoferta') {
+            cerrarModal();
+        }
+    });
+}

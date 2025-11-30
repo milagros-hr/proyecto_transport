@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Estado del Viaje</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Timeline de estados */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #e0e0e0;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 80px;
+            margin-bottom: 2rem;
+        }
+        
+        .timeline-icon {
+            position: absolute;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0e0e0;
+            color: #666;
+            font-size: 1.2rem;
+            z-index: 2;
+        }
+        
+        .timeline-item.active .timeline-icon {
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+            box-shadow: 0 4px 15px rgba(255, 217, 61, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        .timeline-item.completed .timeline-icon {
+            background: #4caf50;
+            color: white;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .timeline-content {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .timeline-item.active .timeline-content {
+            border: 2px solid #ffd93d;
+        }
+        
+        .timeline-title {
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .timeline-desc {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .timeline-time {
+            color: #999;
+            font-size: 0.85rem;
+        }
+        
+        /* Info del conductor */
+        .conductor-card {
+            background: linear-gradient(135deg, rgba(255, 217, 61, 0.1), rgba(255, 152, 0, 0.1));
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(255, 217, 61, 0.3);
+        }
+        
+        .conductor-header {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .conductor-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #333, #555);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffd93d;
+            font-size: 2.5rem;
+        }
+        
+        .conductor-info h2 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .conductor-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #ff9800;
+            font-weight: 700;
+        }
+        
+        .conductor-details {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .detail-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: #666;
+        }
+        
+        .detail-row i {
+            color: #ff9800;
+            width: 25px;
+        }
+        
+        /* Botones de acción */
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 1.2rem;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #333, #555);
+            color: #ffd93d;
+            border: 2px solid #ffd93d;
+        }
+        
+        .btn-primary:hover {
+            background: #ffd93d;
+            color: #333;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        /* Mapa de ubicación */
+        .location-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .location-card h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .route-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: rgba(255, 217, 61, 0.1);
+            border-radius: 10px;
+        }
+        
+        .route-point {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .route-arrow {
+            color: #ff9800;
+            font-size: 1.5rem;
+        }
+        
+        .point-label {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .point-name {
+            color: #333;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        /* Estado de carga */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ffd93d;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 2rem; }
+            .actions { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-route"></i> Estado del Viaje</h1>
+            <p style="color: #666;">Seguimiento en tiempo real</p>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p style="color: #666;">Cargando información del viaje...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let viajeId = null;
+        let intervalId = null;
+
+        async function cargarEstadoViaje() {
+            try {
+                const res = await fetch('/api/pasajero/viaje-activo', {
+                    credentials: 'same-origin'
+                });
+
+                if (!res.ok) throw new Error('No hay viaje activo');
+
+                const viaje = await res.json();
+                viajeId = viaje.id;
+                renderizarViaje(viaje);
+
+                // Actualizar cada 5 segundos si el viaje está activo
+                if (['confirmada', 'en_curso'].includes(viaje.estado)) {
+                    if (!intervalId) {
+                        intervalId = setInterval(cargarEstadoViaje, 5000);
+                    }
+                } else {
+                    clearInterval(intervalId);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('content').innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #666;">
+                        <i class="fas fa-info-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                        <p>No tienes ningún viaje activo en este momento</p>
+                        <a href="/buscar-viaje" style="display: inline-block; margin-top: 1rem; padding: 1rem 2rem; background: #ffd93d; color: #333; text-decoration: none; border-radius: 12px; font-weight: 700;">
+                            Buscar Viaje
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        function renderizarViaje(viaje) {
+            const conductor = viaje.conductor_info || {};
+            
+            const estados = {
+                'pendiente': { icon: 'fa-clock', title: 'Solicitud Enviada', desc: 'Esperando respuesta de conductores' },
+                'con_ofertas': { icon: 'fa-handshake', title: 'Ofertas Recibidas', desc: 'Revisa las ofertas disponibles' },
+                'aceptada': { icon: 'fa-check-circle', title: 'Oferta Aceptada', desc: 'Esperando confirmación del conductor' },
+                'confirmada': { icon: 'fa-car', title: 'Conductor Confirmado', desc: 'El conductor está en camino' },
+                'en_curso': { icon: 'fa-road', title: 'Viaje en Curso', desc: 'Disfruta tu viaje' },
+                'completado': { icon: 'fa-flag-checkered', title: 'Viaje Completado', desc: '¡Gracias por viajar con nosotros!' }
+            };
+
+            const estadoActual = viaje.estado;
+            const estadosOrdenados = ['pendiente', 'con_ofertas', 'aceptada', 'confirmada', 'en_curso', 'completado'];
+            const indexActual = estadosOrdenados.indexOf(estadoActual);
+
+            let timelineHTML = '';
+            estadosOrdenados.forEach((estado, index) => {
+                const info = estados[estado];
+                const isActive = index === indexActual;
+                const isCompleted = index < indexActual;
+                const className = isActive ? 'active' : (isCompleted ? 'completed' : '');
+
+                timelineHTML += `
+                    <div class="timeline-item ${className}">
+                        <div class="timeline-icon">
+                            <i class="fas ${isCompleted ? 'fa-check' : info.icon}"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">${info.title}</div>
+                            <div class="timeline-desc">${info.desc}</div>
+                            ${isActive || isCompleted ? `<div class="timeline-time">Actualizado hace un momento</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            let conductorHTML = '';
+            if (conductor.nombre) {
+                conductorHTML = `
+                    <div class="conductor-card">
+                        <div class="conductor-header">
+                            <div class="conductor-avatar">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div class="conductor-info">
+                                <h2>${conductor.nombre}</h2>
+                                <div class="conductor-rating">
+                                    <i class="fas fa-star"></i>
+                                    <span>4.8</span>
+                                    <span style="color: #999;">(152 viajes)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="conductor-details">
+                            <div class="detail-row">
+                                <i class="fas fa-car"></i>
+                                <span><strong>Vehículo:</strong> ${conductor.modelo || 'N/D'} ${conductor.color || ''}</span>
+                            </div>
+                            <div class="detail-row">
+                                <i class="fas fa-id-card"></i>
+                                <span><strong>Placa:</strong> ${conductor.placa || 'N/D'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <i class="fas fa-phone"></i>
+                                <span><strong>Teléfono:</strong> ${conductor.telefono || 'N/D'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('content').innerHTML = `
+                ${conductorHTML}
+
+                <div class="location-card">
+                    <h3><i class="fas fa-map-marked-alt"></i> Ruta del Viaje</h3>
+                    <div class="route-info">
+                        <div class="route-point">
+                            <div class="point-label">Origen</div>
+                            <div class="point-name">${viaje.origen?.nombre || 'N/D'}</div>
+                        </div>
+                        <div class="route-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="route-point">
+                            <div class="point-label">Destino</div>
+                            <div class="point-name">${viaje.destino?.nombre || 'N/D'}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; color: #666;">
+                            <span><i class="fas fa-road"></i> ${viaje.distancia?.toFixed(1) || '0'} km</span>
+                            <span><i class="fas fa-dollar-sign"></i> S/. ${viaje.precio_acordado?.toFixed(2) || '0.00'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline">
+                    ${timelineHTML}
+                </div>
+
+                <div class="actions">
+                    ${estadoActual === 'en_curso' ? `
+                        <button class="btn btn-success" onclick="confirmarLlegada()">
+                            <i class="fas fa-flag-checkered"></i>
+                            He Llegado
+                        </button>
+                    ` : ''}
+                    <a href="/dashboard" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i>
+                        Volver
+                    </a>
+                </div>
+            `;
+        }
+
+        async function confirmarLlegada() {
+            if (!confirm('¿Confirmas que has llegado a tu destino?')) return;
+
+            try {
+                const res = await fetch('/api/pasajero/confirmar-llegada', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ viaje_id: viajeId })
+                });
+
+                if (!res.ok) throw new Error('Error al confirmar llegada');
+
+                alert('✅ ¡Viaje completado! Gracias por usar TransPort');
+                window.location.href = '/mis-viajes';
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al confirmar la llegada');
+            }
+        }
+
+        // Cargar al inicio
+        document.addEventListener('DOMContentLoaded', cargarEstadoViaje);
+
+        // Limpiar intervalo al salir
+        window.addEventListener('beforeunload', () => {
+            if (intervalId) clearInterval(intervalId);
+        });
+    </script>
+</body>
+</html>

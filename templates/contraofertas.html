@@ -12,57 +12,59 @@
             font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
             min-height: 100vh;
-            padding: 2rem;
+            padding: 1rem;
         }
         
         .container {
-            max-width: 900px;
+            max-width: 100%;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 3rem;
+            border-radius: 15px;
+            padding: 1.5rem;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
         }
         
         .header {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 1.5rem;
         }
         
         .header h1 {
-            font-size: 2rem;
+            font-size: 1.3rem;
             color: #333;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
         }
         
         .header p {
             color: #666;
+            font-size: 0.85rem;
         }
         
         .solicitud-grupo {
             background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            border-left: 5px solid #ffd93d;
+            border-left: 4px solid #ffd93d;
         }
         
         .solicitud-info {
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
             border-bottom: 2px dashed #e0e0e0;
         }
         
         .ruta {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            font-size: 1.2rem;
+            gap: 0.5rem;
+            font-size: 0.95rem;
             font-weight: 700;
-            margin-bottom: 1rem;
+            margin-bottom: 0.8rem;
             color: #333;
+            flex-wrap: wrap;
         }
         
         .ruta i {
@@ -71,38 +73,39 @@
         
         .detalle-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.6rem;
+            margin-top: 0.6rem;
         }
         
         .detalle-item {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
             color: #666;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
         
         .detalle-item i {
             color: #ff9800;
-            width: 20px;
+            width: 16px;
         }
         
         .precio-estandar {
             display: inline-block;
             background: rgba(255, 217, 61, 0.2);
             color: #333;
-            padding: 0.5rem 1rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 8px;
             font-weight: 700;
-            margin-top: 1rem;
+            margin-top: 0.6rem;
+            font-size: 0.85rem;
         }
         
         .contraofertas-titulo {
-            font-size: 1.2rem;
+            font-size: 1rem;
             color: #333;
-            margin-bottom: 1rem;
+            margin-bottom: 0.8rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -110,9 +113,9 @@
         
         .contraoferta-card {
             background: linear-gradient(135deg, rgba(255, 217, 61, 0.1), rgba(255, 152, 0, 0.1));
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
             border: 2px solid rgba(255, 217, 61, 0.3);
             transition: all 0.3s ease;
         }
@@ -126,74 +129,80 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+            gap: 0.8rem;
         }
         
         .conductor-info {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.8rem;
         }
         
         .conductor-avatar {
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             background: linear-gradient(45deg, #333, #555);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #ffd93d;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
+            flex-shrink: 0;
         }
         
         .conductor-datos h3 {
             color: #333;
-            font-size: 1.1rem;
-            margin-bottom: 0.3rem;
+            font-size: 0.95rem;
+            margin-bottom: 0.2rem;
         }
         
         .vehiculo {
             color: #666;
-            font-size: 0.9rem;
+            font-size: 0.75rem;
         }
         
         .precio-oferta {
             background: linear-gradient(45deg, #ffd93d, #ff9800);
             color: #333;
-            padding: 0.8rem 1.2rem;
-            border-radius: 12px;
-            font-size: 1.5rem;
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
+            font-size: 1.2rem;
             font-weight: 700;
             box-shadow: 0 4px 15px rgba(255, 217, 61, 0.4);
         }
         
         .mensaje-conductor {
             background: white;
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            margin-bottom: 0.8rem;
             color: #666;
             font-style: italic;
             border-left: 3px solid #ff9800;
+            font-size: 0.85rem;
         }
         
         .acciones {
             display: flex;
-            gap: 1rem;
+            gap: 0.6rem;
             justify-content: flex-end;
+            flex-wrap: wrap;
         }
         
         .btn {
-            padding: 0.8rem 1.5rem;
-            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
+            font-size: 0.85rem;
         }
         
         .btn-aceptar {
@@ -218,16 +227,17 @@
         .btn-back {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 1rem 2rem;
+            gap: 0.4rem;
+            padding: 0.8rem 1.5rem;
             background: linear-gradient(45deg, #333, #555);
             color: #ffd93d;
             border: 2px solid #ffd93d;
-            border-radius: 12px;
+            border-radius: 10px;
             text-decoration: none;
             font-weight: 700;
             transition: all 0.3s ease;
-            margin-top: 2rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
         }
         
         .btn-back:hover {
@@ -238,24 +248,30 @@
         
         .empty-state {
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 2rem 1rem;
             color: #999;
         }
         
         .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
+            font-size: 2.5rem;
+            margin-bottom: 0.8rem;
             color: #ddd;
+        }
+        
+        .empty-state p {
+            font-size: 0.9rem;
         }
         
         .comparacion-precios {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            margin-top: 1rem;
-            padding: 0.8rem;
+            gap: 0.6rem;
+            margin-top: 0.8rem;
+            padding: 0.6rem;
             background: white;
             border-radius: 8px;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
         }
         
         .precio-original {
@@ -266,9 +282,9 @@
         .ahorro {
             background: #4caf50;
             color: white;
-            padding: 0.3rem 0.6rem;
+            padding: 0.3rem 0.5rem;
             border-radius: 6px;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             font-weight: 700;
         }
         
@@ -277,10 +293,25 @@
         }
         
         @media (max-width: 768px) {
-            body { padding: 1rem; }
-            .container { padding: 2rem; }
-            .conductor-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-            .acciones { flex-direction: column; }
+            body { padding: 0.5rem; }
+            .container { padding: 1rem; border-radius: 10px; }
+            .header h1 { font-size: 1.1rem; }
+            .header p { font-size: 0.8rem; }
+            .conductor-header { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+            .acciones { flex-direction: column; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
+            .precio-oferta { font-size: 1.1rem; padding: 0.5rem 0.8rem; }
+            .ruta { font-size: 0.85rem; }
+        }
+        
+        @media (max-width: 480px) {
+            .container { padding: 0.8rem; }
+            .header h1 { font-size: 1rem; }
+            .solicitud-grupo { padding: 0.8rem; }
+            .contraoferta-card { padding: 0.8rem; }
+            .conductor-avatar { width: 35px; height: 35px; font-size: 1rem; }
+            .conductor-datos h3 { font-size: 0.85rem; }
+            .vehiculo { font-size: 0.7rem; }
         }
     </style>
 </head>
@@ -307,9 +338,52 @@
 
     <script>
         // =========================================
+        // AUTO-ACTUALIZACIÓN CADA 5 SEGUNDOS
+        // =========================================
+        let intervaloActualizacion;
+        
+        // =========================================
         // CARGAR CONTRAOFERTAS
         // =========================================
-        document.addEventListener('DOMContentLoaded', cargarContraofertas);
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarContraofertas();
+            
+            // Iniciar auto-actualización
+            intervaloActualizacion = setInterval(() => {
+                cargarContraofertas();
+            }, 5000); // 5 segundos
+        });
+        document.getElementById('listaContraofertas').addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+
+            const action = btn.dataset.action;
+
+            if (action === 'aceptar') {
+                const id = Number(btn.dataset.id);
+                aceptarContraoferta(id);
+            }
+
+            if (action === 'rechazar') {
+                const id = Number(btn.dataset.id);
+                rechazarContraoferta(id);
+            }
+
+            if (action === 'aceptar-directo') {
+                const solicitudId = Number(btn.dataset.solicitudId);
+                // tu función ya existe:
+                aceptarAceptacionDirecta('directo', solicitudId);
+            }
+        });
+
+
+
+        // Limpiar intervalo al salir
+        window.addEventListener('beforeunload', () => {
+            if (intervaloActualizacion) {
+                clearInterval(intervaloActualizacion);
+            }
+        });
         
         async function cargarContraofertas() {
             try {
@@ -398,16 +472,26 @@
             }).join('');
         }
         
+
         function renderizarContraoferta(contra, precioEstandar) {
             const diferencia = precioEstandar - contra.precio_ofrecido;
             const esMasBarato = diferencia > 0;
             const porcentaje = Math.abs((diferencia / precioEstandar) * 100).toFixed(0);
+            
+            // Detectar si es aceptación directa
+            const esAceptacionDirecta = contra.tipo_oferta === 'aceptacion_directa';
 
             return `
-                <div class="contraoferta-card">
+                <div class="contraoferta-card" style="${esAceptacionDirecta ? 'border: 3px solid #4caf50; background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(129, 199, 132, 0.1));' : ''}">
+                    ${esAceptacionDirecta ? `
+                        <div style="background: linear-gradient(45deg, #4caf50, #66bb6a); color: white; padding: 0.8rem; border-radius: 10px; text-align: center; font-weight: 700; margin-bottom: 1rem; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
+                            <i class="fas fa-check-circle"></i> CONDUCTOR ACEPTÓ TU SOLICITUD
+                        </div>
+                    ` : ''}
+                    
                     <div class="conductor-header">
                         <div class="conductor-info">
-                            <div class="conductor-avatar">
+                            <div class="conductor-avatar" style="${esAceptacionDirecta ? 'background: linear-gradient(45deg, #4caf50, #66bb6a);' : ''}">
                                 <i class="fas fa-car"></i>
                             </div>
                             <div class="conductor-datos">
@@ -417,46 +501,58 @@
                                     ${contra.conductor_vehiculo || 'Vehículo'}
                                 </div>
                                 <div class="vehiculo">
+                                    <i class="fas fa-phone"></i>
+                                    ${contra.conductor_telefono || 'N/A'}
+                                </div>
+                                <div class="vehiculo">
                                     <i class="fas fa-star"></i>
                                     ${contra.conductor_calificacion || '4.5'} ★
                                 </div>
                             </div>
                         </div>
 
-                        <div class="precio-oferta">
+                        <div class="precio-oferta" style="${esAceptacionDirecta ? 'background: linear-gradient(45deg, #4caf50, #66bb6a);' : ''}">
                             S/. ${contra.precio_ofrecido.toFixed(2)}
                         </div>
                     </div>
 
                     ${contra.mensaje ? `
-                        <div class="mensaje-conductor">
+                        <div class="mensaje-conductor" style="${esAceptacionDirecta ? 'border-left: 3px solid #4caf50; background: rgba(76, 175, 80, 0.05);' : ''}">
                             <i class="fas fa-comment-alt"></i>
                             "${contra.mensaje}"
                         </div>
                     ` : ''}
 
-                    <div class="comparacion-precios">
-                        <span>Precio estándar: <span class="precio-original">S/. ${precioEstandar.toFixed(2)}</span></span>
-                        ${esMasBarato ? `
-                            <span class="ahorro">
-                                <i class="fas fa-arrow-down"></i>
-                                Ahorras S/. ${diferencia.toFixed(2)} (${porcentaje}%)
-                            </span>
-                        ` : `
-                            <span class="ahorro diferencia-negativa">
-                                <i class="fas fa-arrow-up"></i>
-                                +S/. ${Math.abs(diferencia).toFixed(2)} (${porcentaje}%)
-                            </span>
-                        `}
-                    </div>
+                    ${!esAceptacionDirecta ? `
+                        <div class="comparacion-precios">
+                            <span>Precio estándar: <span class="precio-original">S/. ${precioEstandar.toFixed(2)}</span></span>
+                            ${esMasBarato ? `
+                                <span class="ahorro">
+                                    <i class="fas fa-arrow-down"></i>
+                                    Ahorras S/. ${diferencia.toFixed(2)} (${porcentaje}%)
+                                </span>
+                            ` : `
+                                <span class="ahorro diferencia-negativa">
+                                    <i class="fas fa-arrow-up"></i>
+                                    +S/. ${Math.abs(diferencia).toFixed(2)} (${porcentaje}%)
+                                </span>
+                            `}
+                        </div>
+                    ` : ''}
 
                     <div class="acciones">
-                        <button class="btn btn-rechazar" onclick="rechazarContraoferta(${contra.id})">
-                            <i class="fas fa-times"></i> Rechazar
+                    ${!esAceptacionDirecta ? `
+                        <button type="button" class="btn btn-rechazar" data-action="rechazar" data-id="${contra.id}">
+                        <i class="fas fa-times"></i> Rechazar
                         </button>
-                        <button class="btn btn-aceptar" onclick="aceptarContraoferta(${contra.id})">
-                            <i class="fas fa-check"></i> Aceptar Oferta
+                        <button type="button" class="btn btn-aceptar" data-action="aceptar" data-id="${contra.id}">
+                        <i class="fas fa-check"></i> Aceptar Oferta
                         </button>
+                    ` : `
+                        <button type="button" class="btn btn-aceptar" data-action="aceptar-directo" data-solicitud-id="${contra.solicitud_id}" style="width: 100%;">
+                        <i class="fas fa-rocket"></i> Confirmar e Iniciar Viaje
+                        </button>
+                    `}
                     </div>
                 </div>
             `;
@@ -495,7 +591,39 @@
                 alert('Error al aceptar la contraoferta');
             }
         }
-        
+        // =========================================
+        // ACEPTAR ACEPTACIÓN DIRECTA
+        // =========================================
+        async function aceptarAceptacionDirecta(ofertaId, solicitudId) {
+            if (!confirm('¿Confirmar este viaje? El conductor recibirá la notificación para iniciar.')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/pasajero/confirmar-viaje-directo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ solicitud_id: solicitudId })
+                });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                
+                if (data.ok) {
+                    alert('✅ ¡Viaje confirmado! El conductor iniciará tu recorrido pronto.');
+                    window.location.href = '/mis-viajes';
+                } else {
+                    alert('❌ ' + (data.error || 'Error al confirmar'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error al confirmar el viaje');
+            }
+        }        
+
 
         // RECHAZAR CONTRAOFERTA
 

@@ -7,5 +7,14 @@
     "tipo": "pasajero",
     "fecha_registro": "2025-11-07 22:45:40",
     "password_hash": "pbkdf2:sha256:1000000$ozyGpQxqTdi0Q34t$341ffa40288be8aa39ee094aec39404c7e9568ef7970f9dbe0a6b6fe6a742db9"
+  },
+  {
+    "id": 2,
+    "nombre": "MILAGROS ISABEL HUAYNATE ROMERO",
+    "correo": "milagrohuro2@gmail.com",
+    "telefono": "+51 904 457 665",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-11-13 02:39:03",
+    "password_hash": "pbkdf2:sha256:1000000$vsxs617j7pYe20th$b81b9ce22a2956ff99db3ec420fca7f00bc9eebda7f8b6ac06aabadaeff59fbd"
   }
 ]

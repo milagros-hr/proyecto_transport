@@ -37,6 +37,10 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
             overflow-y: auto;
+
+            /* ✅ para que el panel de contraofertas pueda llenar el alto */
+            display: flex;
+            flex-direction: column;
         }
 
         .header { text-align: center; margin-bottom: 2rem; }
@@ -112,11 +116,27 @@
         /* Mapa */
         .map-container {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px); border-radius: 20px; overflow: hidden;
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            overflow: hidden;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3); position: relative; height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            height: 100%;
         }
+
+        /* ✅ mantener proporciones (NO se achica) */
         #map { height: 100%; width: 100%; min-height: 500px; }
+
+        /* ✅ overlay simple para bloquear el mapa SIN cambiar tamaños */
+        #mapLockOverlay {
+            position: absolute;
+            inset: 0;
+            z-index: 9999;
+            display: none;
+            background: transparent;
+            pointer-events: all; /* bloquea interacción */
+        }
 
         /* Status indicators */
         .status {
@@ -184,24 +204,69 @@
             box-shadow: 0 6px 18px rgba(0,0,0,.15); font-weight: 700; padding: .25rem .5rem !important;
         }
 
+        /* ✅ Contraofertas dentro del panel izquierdo (full) */
+        #panelContra {
+            display: none;
+            flex: 1;
+            min-height: 320px;
+            margin-top: 1rem;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,.10);
+            background: #fff;
+        }
+        #panelContraHeader{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            padding:10px 12px;
+            border-bottom: 1px solid rgba(0,0,0,.08);
+            background: rgba(0,0,0,.02);
+            font-size:14px;
+            font-weight:700;
+        }
+        #panelContraHeader .mini-btns { display:flex; gap:8px; }
+        .mini-btn{
+            border:none;
+            border-radius:10px;
+            padding:8px 10px;
+            cursor:pointer;
+            font-weight:700;
+            font-size:12px;
+            background: rgba(0,0,0,.07);
+        }
+        #contraIframe {
+            width: 100%;
+            height: calc(100% - 48px);
+            border: 0;
+        }
+
+        /* ✅ Mensaje "Solicitud enviada" */
+        #panelSent { display:none; margin-top: 1rem; }
+
         /* Responsive */
         @media (max-width: 1024px) {
-            .container { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 1rem; }
+            .container { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 1rem; height: auto; }
             .search-panel { height: auto; }
             .map-container { height: 420px; }
         }
         @media (max-width: 768px) {
             body { padding: 0.5rem; }
             .search-panel { padding: 1.5rem; }
-            .container { height: auto; }
             #map { min-height: 360px; }
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <!-- Panel lateral -->
-        <div class="search-panel">
+<div class="container">
+
+    <!-- Panel lateral -->
+    <div class="search-panel">
+
+        <!-- ✅ PANEL NORMAL (tu contenido de buscar) -->
+        <div id="panelBuscar">
             <a href="/dashboard" class="btn-back">
                 <i class="fas fa-arrow-left"></i> Volver al Dashboard
             </a>
@@ -250,8 +315,6 @@
                     <small id="destinoAddress"></small>
                 </div>
 
-
-
                 <div class="form-group">
                     <label for="pasajeros">Número de Pasajeros</label>
                     <div class="input-wrapper">
@@ -283,6 +346,7 @@
                         </label>
                     </div>
                 </div>
+
                 <button type="submit" id="searchBtn" class="btn-search" disabled>
                     <i class="fas fa-search"></i> Buscar Viajes Disponibles
                 </button>
@@ -309,6 +373,7 @@
                     <i class="fas fa-check-circle"></i> Solicitar viaje
                 </button>
             </div>
+
             <!-- Resultados de búsqueda -->
             <div class="results" id="results" style="display: none;">
                 <h3 style="color: #333; margin-bottom: 1rem;">
@@ -318,44 +383,164 @@
             </div>
         </div>
 
-        <!-- Mapa -->
-        <div class="map-container">
-            <div id="map"></div>
+        <!-- ✅ MENSAJE 10s -->
+        <div id="panelSent">
+            <div class="status success">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <div style="font-weight:700;">Solicitud enviada</div>
+                    <div style="font-size:.85rem; opacity:.85;">Esperando contraofertas...</div>
+                </div>
+            </div>
         </div>
+
+        <!-- ✅ PANEL CONTRAOFERTAS (reemplaza todo el panel izquierdo) -->
+        <div id="panelContra">
+            <div id="panelContraHeader">
+                <span>💬 Contraofertas</span>
+                <div class="mini-btns">
+                    <button id="btnVolverBuscar" class="mini-btn" type="button">Volver</button>
+                    <button id="btnRecargarContra" class="mini-btn" type="button">Recargar</button>
+                </div>
+            </div>
+            <iframe id="contraIframe" src="/contraofertas?embed=1"></iframe>
+        </div>
+
     </div>
 
-    <!-- Datalist para autocompletado (llenado por JS) -->
-    <datalist id="nodosList"></datalist>
+    <!-- Mapa -->
+    <div class="map-container">
+        <div id="map"></div>
+        <!-- ✅ overlay transparente SOLO para bloquear interacción -->
+        <div id="mapLockOverlay"></div>
+    </div>
 
-    <!-- Leaflet -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</div>
 
-    <!--  JS principal  -->
-    <script src="/static/js/buscar_viaje.js?v=7"></script>
+<!-- Datalist para autocompletado (llenado por JS) -->
+<datalist id="nodosList"></datalist>
 
-<!-- Script para manejar solicitud -->
-    <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const btn = document.querySelector("#btnSolicitar");
-        btn && btn.addEventListener("click", async function() {
-            const origenPt = window._origenSeleccionado || { nombre: "Origen", lat: -12.0464, lng: -77.0428 };
-            const destinoPt = window._destinoSeleccionado || { nombre: "Destino", lat: -12.1203, lng: -77.0282 };
+<!-- Leaflet -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
-            await window.mostrarRutaCalculada(origenPt, destinoPt);
-            const res = await window.enviarSolicitud(origenPt, destinoPt, {});
-            if (res && res.ok) {
-                alert("Solicitud creada correctamente");
-                window.location.reload();
-            } else {
-                alert("Error creando solicitud: " + (res && res.error ? res.error : "desconocido"));
-            }
-        });
+<!--  JS principal  -->
+<script src="/static/js/buscar_viaje.js?v=7"></script>
 
-        if (window._origenSeleccionado && window._destinoSeleccionado) {
-            window.mostrarRutaCalculada(window._origenSeleccionado, window._destinoSeleccionado);
+<!-- Script para manejar solicitud (tu bloque original, SOLO quitando el reload) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.querySelector("#btnSolicitar");
+    btn && btn.addEventListener("click", async function() {
+        const origenPt = window._origenSeleccionado || { nombre: "Origen", lat: -12.0464, lng: -77.0428 };
+        const destinoPt = window._destinoSeleccionado || { nombre: "Destino", lat: -12.1203, lng: -77.0282 };
+
+        await window.mostrarRutaCalculada(origenPt, destinoPt);
+        const res = await window.enviarSolicitud(origenPt, destinoPt, {}); // <-- esto hace POST /api/solicitar
+
+        if (!(res && res.ok)) {
+            alert("❌ Error creando solicitud: " + (res && res.error ? res.error : "desconocido"));
         }
+        // ✅ NO recargamos. El hook de abajo se encarga de limpiar panel y mostrar contraofertas.
     });
-    </script>
+
+    if (window._origenSeleccionado && window._destinoSeleccionado) {
+        window.mostrarRutaCalculada(window._origenSeleccionado, window._destinoSeleccionado);
+    }
+});
+</script>
+
+<!-- ✅ Hook: al crear solicitud -> 10s "Solicitud enviada" -> reemplazar panel por contraofertas + bloquear mapa -->
+<script>
+(() => {
+    const ENDPOINT_SOLICITAR = "/api/solicitar";
+    const ENDPOINT_MIS_SOL   = "/api/pasajero/mis-solicitudes";
+
+    const panelBuscar = document.getElementById("panelBuscar");
+    const panelSent   = document.getElementById("panelSent");
+    const panelContra = document.getElementById("panelContra");
+    const ifr         = document.getElementById("contraIframe");
+
+    const overlay = document.getElementById("mapLockOverlay");
+
+    const btnVolver = document.getElementById("btnVolverBuscar");
+    const btnReload = document.getElementById("btnRecargarContra");
+
+    let timer = null;
+
+    function lockMap() {
+        if (overlay) overlay.style.display = "block";
+        window.MAPA_LOCKED = true;
+    }
+
+    function unlockMap() {
+        if (overlay) overlay.style.display = "none";
+        window.MAPA_LOCKED = false;
+    }
+
+    function showBuscar() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (panelContra) panelContra.style.display = "none";
+        if (panelSent) panelSent.style.display = "none";
+        if (panelBuscar) panelBuscar.style.display = "block";
+        unlockMap();
+    }
+
+    function showContra() {
+        if (panelBuscar) panelBuscar.style.display = "none";
+        if (panelSent) panelSent.style.display = "none";
+        if (panelContra) panelContra.style.display = "block";
+        if (ifr) ifr.src = "/contraofertas?embed=1&ts=" + Date.now();
+        lockMap();
+    }
+
+    function showSentThenContra() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (panelBuscar) panelBuscar.style.display = "none";
+        if (panelContra) panelContra.style.display = "none";
+        if (panelSent) panelSent.style.display = "block";
+        lockMap();
+
+        timer = setTimeout(() => {
+            showContra();
+        }, 10000); // ✅ 10 segundos
+    }
+
+    btnVolver?.addEventListener("click", showBuscar);
+    btnReload?.addEventListener("click", () => {
+        if (ifr) ifr.src = "/contraofertas?embed=1&ts=" + Date.now();
+    });
+
+    // ✅ Si ya hay solicitud pendiente al cargar la página, mostrar contraofertas directo
+    (async () => {
+        try {
+            const r = await fetch(ENDPOINT_MIS_SOL, { credentials: "include" });
+            if (!r.ok) return;
+            const arr = await r.json();
+            if (Array.isArray(arr) && arr.length > 0) {
+                showContra();
+            }
+        } catch (e) {}
+    })();
+
+    // ✅ Interceptar fetch: cuando se haga POST /api/solicitar OK -> mostrar flujo
+    const _fetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+        const input = args[0];
+        const init  = args[1] || {};
+        const url   = (typeof input === "string") ? input : (input?.url || "");
+        const method = (init.method || "GET").toUpperCase();
+
+        const res = await _fetch(...args);
+
+        if (url.includes(ENDPOINT_SOLICITAR) && method === "POST" && res.ok) {
+            // ✅ solicitud creada
+            showSentThenContra();
+        }
+
+        return res;
+    };
+})();
+</script>
 
 </body>
 </html>
