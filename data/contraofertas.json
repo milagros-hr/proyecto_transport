@@ -1,32 +1,3 @@
 [
-  {
-    "id": 1,
-    "solicitud_id": 5,
-    "conductor_id": 1,
-    "precio_ofrecido": 35.0,
-    "mensaje": "",
-    "estado": "aceptada",
-    "fecha_creacion": "2025-11-30 12:53:05",
-    "fecha_actualizacion": "2025-11-30 12:53:11"
-  },
-  {
-    "id": 2,
-    "solicitud_id": 9,
-    "conductor_id": 1,
-    "precio_ofrecido": 20.0,
-    "mensaje": "",
-    "estado": "aceptada",
-    "fecha_creacion": "2025-11-30 13:25:30",
-    "fecha_actualizacion": "2025-11-30 13:25:36"
-  },
-  {
-    "id": 3,
-    "solicitud_id": 18,
-    "conductor_id": 1,
-    "precio_ofrecido": 32.0,
-    "mensaje": "",
-    "estado": "aceptada",
-    "fecha_creacion": "2025-11-30 16:05:14",
-    "fecha_actualizacion": "2025-11-30 16:05:20"
-  }
+
 ]

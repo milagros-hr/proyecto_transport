@@ -628,11 +628,12 @@ def api_mis_solicitudes():
         from servicios.solicitudes_mejoradas import _leer_json, SOLICITUDES_FILE
         solicitudes = _leer_json(SOLICITUDES_FILE)
         
-        # Filtrar solicitudes del pasajero que estén pendientes
+        # ✅ Filtrar solicitudes del pasajero en estados activos
+        estados_activos = ['pendiente', 'aceptada', 'confirmado', 'en_curso']
         mis_solicitudes = [
             s for s in solicitudes 
             if s.get('pasajero_id') == pasajero_id 
-            and s.get('estado') == 'pendiente'
+            and s.get('estado') in estados_activos
         ]
         
         return jsonify(mis_solicitudes), 200
@@ -1536,6 +1537,33 @@ def api_cancelar_viaje_conductor():
         print(f"❌ Error cancelando viaje: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.post("/api/conductor/marcar-cancelacion-vista")
+@requiere_login
+def api_marcar_cancelacion_vista():
+    """
+    El conductor marca una cancelación como vista para que no vuelva a aparecer
+    """
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        solicitud_id = data.get('solicitud_id')
+        conductor_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import marcar_cancelacion_vista_conductor
+        resultado = marcar_cancelacion_vista_conductor(conductor_id, solicitud_id)
+        
+        if resultado:
+            return jsonify({"ok": True}), 200
+        else:
+            return jsonify({"error": "No se pudo marcar"}), 400
+            
+    except Exception as e:
+        print(f"❌ Error marcando cancelación: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/mis-viajes-conductor")
 @requiere_login
 def mis_viajes_conductor():
@@ -1550,8 +1578,9 @@ def mis_viajes_conductor():
 @requiere_login
 def api_conductor_mis_ofertas_pendientes():
     """
-    Devuelve las contraofertas que ESTE conductor envió y que aún están en estado 'pendiente'.
-    (Esto elimina el 404 que te aparece en consola.)
+    Devuelve:
+    - pendientes: contraofertas enviadas esperando respuesta
+    - confirmados: viajes confirmados listos para iniciar (para redirigir automáticamente)
     """
     if session.get('user_type') != 'conductor':
         return jsonify({"error": "Solo conductores"}), 403
@@ -1565,15 +1594,16 @@ def api_conductor_mis_ofertas_pendientes():
 
         sol_by_id = {s.get("id"): s for s in solicitudes}
 
-        mis = [
+        # Contraofertas pendientes
+        mis_pendientes = [
             c for c in contraofertas
             if c.get("conductor_id") == conductor_id and c.get("estado") == "pendiente"
         ]
 
         from servicios.usuarios_repo import buscar_usuario_por_id
 
-        resultado = []
-        for c in mis:
+        pendientes = []
+        for c in mis_pendientes:
             item = dict(c)
             sol = sol_by_id.get(c.get("solicitud_id"))
             if sol:
@@ -1582,10 +1612,19 @@ def api_conductor_mis_ofertas_pendientes():
                 if pasajero:
                     item["pasajero_nombre"] = pasajero.get("nombre", "Pasajero")
                     item["pasajero_telefono"] = pasajero.get("telefono", "N/A")
+            pendientes.append(item)
 
-            resultado.append(item)
+        # ✅ Viajes confirmados (pasajero aceptó, listo para iniciar)
+        confirmados = [
+            s for s in solicitudes
+            if s.get("conductor_id") == conductor_id 
+            and s.get("estado") in ["confirmado", "en_curso"]
+        ]
 
-        return jsonify(resultado), 200
+        return jsonify({
+            "pendientes": pendientes,
+            "confirmados": confirmados
+        }), 200
 
     except Exception as e:
         print("❌ Error en /api/conductor/mis-ofertas-pendientes:", e)

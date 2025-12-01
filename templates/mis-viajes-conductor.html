@@ -15,7 +15,6 @@
         overflow: hidden;
     }
     
-    /* SIDEBAR MEJORADO */
     .sidebar {
         position: fixed;
         left: 0;
@@ -30,9 +29,9 @@
     }
     
     .header {
-    padding: 2rem 1.5rem;
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    border-bottom: 2px solid rgba(255,215,0,0.3);
+        padding: 2rem 1.5rem;
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        border-bottom: 2px solid rgba(255,215,0,0.3);
     }
 
     .header h1 {
@@ -45,7 +44,6 @@
         font-weight: 700;
     }
 
-    /* Texto del sidebar en negro para fondo claro */
     .sidebar {
         color: #1a1a1a;
     }
@@ -72,7 +70,6 @@
         opacity: 0.9;
     }
     
-    /* PANEL DE VIAJE ACTIVO */
     .viaje-activo-panel {
         margin: 1.5rem;
         background: rgba(255,215,0,0.15);
@@ -123,7 +120,6 @@
         border-left: 3px solid #FFD700;
     }
     
-    /* BOTONES */
     .btn-grande {
         width: 100%;
         padding: 1.2rem;
@@ -207,7 +203,6 @@
         margin-right: 0.5rem;
     }
     
-    /* EMPTY STATE */
     .empty-state {
         text-align: center;
         padding: 3rem 1.5rem;
@@ -220,7 +215,6 @@
         opacity: 0.5;
     }
     
-    /* MAPA */
     #map {
         position: fixed;
         top: 0;
@@ -230,26 +224,6 @@
         z-index: 1;
     }
     
-    /* INFO BOX EN MAPA */
-    .map-info-box {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background: white;
-        padding: 1rem 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 1000;
-        max-width: 300px;
-    }
-    
-    .map-info-box h4 {
-        margin-bottom: 0.5rem;
-        color: #FFD700;
-        font-weight: 700;
-    }
-    
-    /* RESPONSIVE */
     @media (max-width: 768px) {
         .sidebar {
             width: 100%;
@@ -267,18 +241,13 @@
 </head>
 
 <body>
-    <!-- PANEL LATERAL: Información del viaje -->
     <div class="sidebar">
         <div class="header">
             <h1><i class="fas fa-route"></i> Viaje en Curso</h1>
         </div>
 
-        <!-- Estado de viaje activo -->
-        <div id="viajeActivo" style="display: none; padding: 1.5rem;">
-            <!-- Aquí se renderiza el viaje confirmado/en_curso -->
-        </div>
+        <div id="viajeActivo" style="display: none; padding: 1.5rem;"></div>
 
-        <!-- Estado: esperando confirmación -->
         <div id="panelEspera" style="display: none; margin: 1.5rem; background: #fff3cd; padding: 1rem; border-radius: 12px; border-left: 5px solid #ff9800;">
             <h3 style="font-size: 1rem; color: #856404; margin-bottom: 0.8rem;">
                 <i class="fas fa-clock fa-spin"></i> Esperando confirmación...
@@ -286,7 +255,6 @@
             <div id="listaEspera" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
         </div>
 
-        <!-- Estado: sin viaje activo -->
         <div id="sinViaje" style="padding: 2rem; text-align: center;">
             <i class="fas fa-inbox" style="font-size: 3rem; color: #ddd; margin-bottom: 1rem;"></i>
             <p style="color: #999;">No tienes viajes activos</p>
@@ -305,7 +273,6 @@
         </div>
     </div>
 
-    <!-- MAPA PRINCIPAL -->
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -321,6 +288,7 @@
     let watchId = null;
     let intervaloActualizacion = null;
     let ubicacionConductor = null;
+    let ultimoViajeId = null;
 
     const carIcon = L.icon({
         iconUrl: 'https://cdn-icons-png.flaticon.com/512/3097/3097150.png',
@@ -340,13 +308,13 @@
         iconAnchor: [17, 35]
     });
 
-    document.addEventListener('DOMContentLoaded', init);
-
-    function init() {
+    // ✅ INICIALIZACIÓN
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 Iniciando aplicación conductor...');
         initMap();
-        cargarViajeActivo();
         iniciarGPS();
-    }
+        cargarViajeActivo(); // Primera carga
+    });
 
     function initMap() {
         const limaCenter = [-12.0464, -77.0428];
@@ -360,12 +328,38 @@
         console.log('🗺️ Mapa inicializado');
     }
 
-    // =========================================
-    // GPS AUTOMÁTICO
-    // =========================================
+    // ✅ FUNCIÓN: Limpiar completamente la vista
+    function limpiarVista() {
+        console.log('🧹 Limpiando vista...');
+        
+        if (pasajeroMarker) {
+            map.removeLayer(pasajeroMarker);
+            pasajeroMarker = null;
+        }
+        if (destinoMarker) {
+            map.removeLayer(destinoMarker);
+            destinoMarker = null;
+        }
+        if (rutaPolyline) {
+            map.removeLayer(rutaPolyline);
+            rutaPolyline = null;
+        }
+        if (rutaAlPasajeroPolyline) {
+            map.removeLayer(rutaAlPasajeroPolyline);
+            rutaAlPasajeroPolyline = null;
+        }
+
+        document.getElementById('sinViaje').style.display = 'block';
+        document.getElementById('viajeActivo').style.display = 'none';
+        document.getElementById('panelEspera').style.display = 'none';
+
+        viajeActual = null;
+        ultimoViajeId = null;
+    }
+
     function iniciarGPS() {
         if (!navigator.geolocation) {
-            console.log('GPS no disponible');
+            console.log('❌ GPS no disponible');
             return;
         }
 
@@ -376,8 +370,7 @@
                 actualizarPosicionConductor(lat, lng);
             },
             (error) => {
-                console.error("Error GPS:", error);
-                // Usar ubicación por defecto (Centro de Lima) si falla
+                console.error("❌ Error GPS:", error);
                 actualizarPosicionConductor(-12.0464, -77.0428);
             },
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
@@ -385,7 +378,7 @@
     }
 
     function actualizarPosicionConductor(lat, lng) {
-        ubicacionConductor = { lat, lng }; // Guardar ubicación
+        ubicacionConductor = { lat, lng };
         
         if (conductorMarker) {
             conductorMarker.setLatLng([lat, lng]);
@@ -396,23 +389,20 @@
             map.setView([lat, lng], 15);
         }
 
-        // Calcular distancia al pasajero si hay viaje activo
         if (viajeActual && viajeActual.origen) {
             const distancia = calcularDistancia(
                 lat, lng,
                 viajeActual.origen.lat, viajeActual.origen.lng
             );
             actualizarDistanciaUI(distancia);
-            
-            // DIBUJAR RUTA CONDUCTOR → PASAJERO (Actualizada en tiempo real)
             dibujarRutaAlPasajero();
         }
     }
 
-    // =========================================
-    // CARGAR VIAJE ACTIVO
-    // =========================================
+    // ✅ CARGAR VIAJE ACTIVO (CORREGIDO)
     async function cargarViajeActivo() {
+        console.log('🔄 Verificando viajes activos...');
+        
         try {
             const res = await fetch('/api/conductor/mis-viajes-activos', {
                 credentials: 'same-origin'
@@ -421,33 +411,85 @@
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
             const viajes = await res.json();
+            console.log('📦 Respuesta API:', viajes);
 
-            // Buscar viaje confirmado o en curso
-            viajeActual = viajes.find(v => 
+            // ✅ DETECTAR CANCELACIÓN DEL PASAJERO
+            const cancelacion = viajes.find(v =>
+                v.estado === 'cancelado_pasajero' || v.tipo === 'cancelacion'
+            );
+
+            if (cancelacion) {
+                console.log('⚠️ CANCELACIÓN DETECTADA:', cancelacion);
+                
+                // Detener el polling primero
+                if (intervaloActualizacion) {
+                    clearInterval(intervaloActualizacion);
+                    intervaloActualizacion = null;
+                }
+                
+                // Marcar como vista para que no vuelva a aparecer
+                await fetch('/api/conductor/marcar-cancelacion-vista', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ solicitud_id: cancelacion.id })
+                });
+                
+                alert('⚠️ EL PASAJERO HA CANCELADO EL VIAJE\n\nRuta: ' + (cancelacion.origen?.nombre || 'Origen') + ' → ' + (cancelacion.destino?.nombre || 'Destino') + '\n\nSerás redirigido para buscar nuevas solicitudes.');
+                window.location.href = '/crear-ruta';
+                return;
+            }
+
+            const nuevoViaje = viajes.find(v => 
                 v.estado === 'confirmado' || v.estado === 'en_curso'
             );
 
-            if (viajeActual) {
-                renderizarViajeActivo();
-                await dibujarRutaReal();
-            } else {
-                document.getElementById('sinViaje').style.display = 'block';
-                document.getElementById('viajeActivo').style.display = 'none';
+            // ✅ DETECCIÓN DE CANCELACIÓN
+            if (ultimoViajeId !== null && !nuevoViaje) {
+                console.log('⚠️ VIAJE CANCELADO - Redirigiendo...');
+                
+                if (intervaloActualizacion) {
+                    clearInterval(intervaloActualizacion);
+                    intervaloActualizacion = null;
+                }
+
+                alert('🚫 El pasajero canceló el viaje.');
+                window.location.href = '/crear-ruta';
+                return;
             }
 
-            // Auto-refrescar cada 15 segundos
+            // ✅ NO HAY VIAJE
+            if (!nuevoViaje) {
+                console.log('ℹ️ Sin viajes activos');
+                limpiarVista();
+                
+                if (intervaloActualizacion) {
+                    clearInterval(intervaloActualizacion);
+                    intervaloActualizacion = null;
+                }
+                return;
+            }
+
+            // ✅ HAY VIAJE ACTIVO
+            console.log('✅ Viaje activo encontrado:', nuevoViaje);
+            viajeActual = nuevoViaje;
+            ultimoViajeId = viajeActual.id;
+
+            renderizarViajeActivo();
+            await dibujarRutaReal();
+
+            // ✅ INICIAR POLLING (solo si no existe)
             if (!intervaloActualizacion) {
-                intervaloActualizacion = setInterval(cargarViajeActivo, 15000);
+                console.log('⏰ Iniciando polling cada 3 segundos');
+                intervaloActualizacion = setInterval(cargarViajeActivo, 3000);
             }
 
         } catch (error) {
-            console.error('❌ Error:', error);
+            console.error('❌ Error cargando viaje:', error);
+            limpiarVista();
         }
     }
 
-    // =========================================
-    // RENDERIZAR VIAJE EN SIDEBAR
-    // =========================================
     function renderizarViajeActivo() {
         document.getElementById('sinViaje').style.display = 'none';
         document.getElementById('viajeActivo').style.display = 'block';
@@ -524,13 +566,7 @@
                     <button class="btn-grande" onclick="navegarRutaCompletaGoogle()" 
                         style="background: white; color: #333; border: 2px solid #4285F4; margin-bottom: 0.5rem;">
                         <i class="fab fa-google" style="color: #4285F4;"></i>
-                    Ver Ruta Completa (Google Maps)
-                    </button>
-                    
-                    <button class="btn-grande" onclick="navegarARecojoWaze()" 
-                            style="background: linear-gradient(45deg, #00d8ff, #00b8d4); color: white; margin-bottom: 1rem;">
-                        <i class="fas fa-route"></i>
-                        Ir a Recoger (Waze)
+                        Ver Ruta Completa (Google Maps)
                     </button>
                 ` : ''}
 
@@ -545,12 +581,6 @@
                         <i class="fas fa-map-marked-alt"></i>
                         Navegar a Destino (Google Maps)
                     </button>
-                    
-                    <button class="btn-grande" onclick="navegarADestinoWaze()" 
-                            style="background: linear-gradient(45deg, #00d8ff, #00b8d4); color: white; margin-bottom: 1rem;">
-                        <i class="fas fa-route"></i>
-                        Navegar a Destino (Waze)
-                    </button>
                 ` : ''}
 
                 <button class="btn-grande btn-cancelar" onclick="cancelarViaje()">
@@ -560,13 +590,9 @@
         `;
     }
 
-    // =========================================
-    // DIBUJAR RUTA CONDUCTOR → PASAJERO (AMARILLA) - ¡CORREGIDO!
-    // =========================================
     async function dibujarRutaAlPasajero() {
         if (!ubicacionConductor || !viajeActual || !viajeActual.origen) return;
 
-        // Limpiar ruta anterior
         if (rutaAlPasajeroPolyline) {
             map.removeLayer(rutaAlPasajeroPolyline);
         }
@@ -575,16 +601,12 @@
         const destino = viajeActual.origen;
 
         try {
-            // USAMOS OSRM (Servicio público gratuito) en lugar de OpenRouteService con key
             const url = `https://router.project-osrm.org/route/v1/driving/${origen.lng},${origen.lat};${destino.lng},${destino.lat}?overview=full&geometries=geojson`;
-
             const res = await fetch(url);
             const data = await res.json();
 
             if (data.routes && data.routes[0]) {
                 const rutaGeoJSON = data.routes[0].geometry;
-
-                // RUTA AMARILLA para ir al pasajero
                 rutaAlPasajeroPolyline = L.geoJSON(rutaGeoJSON, {
                     style: {
                         color: '#FFD700',
@@ -593,57 +615,41 @@
                         dashArray: '10, 5'
                     }
                 }).addTo(map);
-
-                console.log('🟡 Ruta al pasajero dibujada con OSRM');
-            } else {
-                dibujarRutaSimple(origen, destino);
             }
         } catch (error) {
             console.error('Error dibujando ruta OSRM:', error);
-            dibujarRutaSimple(origen, destino);
         }
     }
 
-    // =========================================
-    // DIBUJAR RUTA REAL (VERDE) - ¡CORREGIDO!
-    // =========================================
     async function dibujarRutaReal() {
         if (!viajeActual) return;
 
         const origen = viajeActual.origen;
         const destino = viajeActual.destino;
 
-        // Limpiar marcadores anteriores
         if (pasajeroMarker) map.removeLayer(pasajeroMarker);
         if (destinoMarker) map.removeLayer(destinoMarker);
         if (rutaPolyline) map.removeLayer(rutaPolyline);
 
-        // Marcador de pasajero
         pasajeroMarker = L.marker([origen.lat, origen.lng], { icon: passengerIcon })
             .addTo(map)
             .bindPopup(`<b>📍 Recoger aquí</b><br>${origen.nombre}`);
 
-        // Marcador de destino
         destinoMarker = L.marker([destino.lat, destino.lng], { icon: destinoIcon })
             .addTo(map)
             .bindPopup(`<b>🏁 Destino</b><br>${destino.nombre}`);
 
-        // PRIMERO: Dibujar ruta del conductor al pasajero (si hay ubicación)
         if (ubicacionConductor) {
             await dibujarRutaAlPasajero();
         }
 
-        // SEGUNDO: Obtener ruta pasajero → destino (VERDE) usando OSRM
         try {
             const url = `https://router.project-osrm.org/route/v1/driving/${origen.lng},${origen.lat};${destino.lng},${destino.lat}?overview=full&geometries=geojson`;
-
             const res = await fetch(url);
             const data = await res.json();
 
             if (data.routes && data.routes[0]) {
                 const rutaGeoJSON = data.routes[0].geometry;
-
-                // Ruta VERDE del viaje del pasajero
                 rutaPolyline = L.geoJSON(rutaGeoJSON, {
                     style: {
                         color: '#4caf50',
@@ -652,48 +658,22 @@
                     }
                 }).addTo(map);
 
-                // Ajustar vista para mostrar TODO
                 const bounds = L.latLngBounds([]);
                 if (ubicacionConductor) bounds.extend([ubicacionConductor.lat, ubicacionConductor.lng]);
                 bounds.extend([origen.lat, origen.lng]);
                 bounds.extend([destino.lat, destino.lng]);
                 map.fitBounds(bounds, { padding: [50, 50] });
-            } else {
-                dibujarRutaSimple(origen, destino);
             }
         } catch (error) {
             console.error('Error obteniendo ruta OSRM:', error);
-            dibujarRutaSimple(origen, destino);
         }
     }
 
-    function dibujarRutaSimple(origen, destino) {
-        rutaPolyline = L.polyline([
-            [origen.lat, origen.lng],
-            [destino.lat, destino.lng]
-        ], {
-            color: '#ff9800',
-            weight: 4,
-            opacity: 0.7,
-            dashArray: '10, 10'
-        }).addTo(map);
-
-        const bounds = L.latLngBounds([]);
-        if (ubicacionConductor) bounds.extend([ubicacionConductor.lat, ubicacionConductor.lng]);
-        bounds.extend([origen.lat, origen.lng]);
-        bounds.extend([destino.lat, destino.lng]);
-        map.fitBounds(bounds, { padding: [50, 50] });
-    }
-
-    // =========================================
-    // ACTUALIZAR DISTANCIA EN UI
-    // =========================================
     function actualizarDistanciaUI(distanciaKm) {
         const elem = document.getElementById('distanciaAlPasajero');
         if (!elem) return;
 
-        const tiempoEstimado = Math.ceil(distanciaKm * 2.5); // ~2.5 min por km en ciudad
-
+        const tiempoEstimado = Math.ceil(distanciaKm * 2.5);
         elem.innerHTML = `
             <i class="fas fa-location-arrow"></i>
             <div>
@@ -703,9 +683,6 @@
         `;
     }
 
-    // =========================================
-    // FUNCIONES DE VIAJE
-    // =========================================
     async function iniciarViaje() {
         if (!confirm('¿Iniciar este viaje? El pasajero recibirá notificación.')) return;
 
@@ -785,9 +762,6 @@
         }
     }
 
-    // =========================================
-    // HELPER: CALCULAR DISTANCIA
-    // =========================================
     function calcularDistancia(lat1, lng1, lat2, lng2) {
         const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -799,71 +773,14 @@
         return R * c;
     }
 
-    // ============================================
-    // NAVEGACIÓN EXTERNA PARA CONDUCTORES
-    // ============================================
-
-            // ============================================
-            // NUEVA FUNCIÓN: RUTA COMPLETA (Solo Google Maps)
-            // ============================================
     function navegarRutaCompletaGoogle() {
-        if (!ubicacionConductor) {
-            alert("Necesitamos tu ubicación GPS para trazar la ruta completa.");
-            return;
-        }
-        if (!viajeActual || !viajeActual.origen || !viajeActual.destino) {
+        if (!ubicacionConductor || !viajeActual) {
             alert("Faltan datos del viaje.");
             return;
         }
 
-        const driverLat = ubicacionConductor.lat;
-        const driverLng = ubicacionConductor.lng;
-        
-        const pickupLat = viajeActual.origen.lat;
-        const pickupLng = viajeActual.origen.lng;
-        
-        const destLat = viajeActual.destino.lat;
-        const destLng = viajeActual.destino.lng;
-
-        // Formato Mágico de Google Maps:
-        // origin = Tu ubicación
-        // destination = El destino final
-        // waypoints = Las paradas intermedias (el recojo)
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${destLat},${destLng}&waypoints=${pickupLat},${pickupLng}&travelmode=driving`;
-
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${ubicacionConductor.lat},${ubicacionConductor.lng}&destination=${viajeActual.destino.lat},${viajeActual.destino.lng}&waypoints=${viajeActual.origen.lat},${viajeActual.origen.lng}&travelmode=driving`;
         window.open(url, '_blank');
-    }
-    
-    function navegarARecojo() {
-        if (!viajeActual || !viajeActual.origen) {
-            alert('No hay punto de recojo disponible');
-            return;
-        }
-
-        const lat = viajeActual.origen.lat;
-        const lng = viajeActual.origen.lng;
-        const nombre = viajeActual.origen.nombre;
-
-        if (confirm(`¿Abrir Google Maps para ir a:\n📍 ${nombre}?`)) {
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-            window.open(url, '_blank');
-        }
-    }
-
-    function navegarARecojoWaze() {
-        if (!viajeActual || !viajeActual.origen) {
-            alert('No hay punto de recojo disponible');
-            return;
-        }
-
-        const lat = viajeActual.origen.lat;
-        const lng = viajeActual.origen.lng;
-        const nombre = viajeActual.origen.nombre;
-
-        if (confirm(`¿Abrir Waze para ir a:\n📍 ${nombre}?`)) {
-            const url = `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
-            window.open(url, '_blank');
-        }
     }
 
     function navegarADestino() {
@@ -872,36 +789,20 @@
             return;
         }
 
-        const lat = viajeActual.destino.lat;
-        const lng = viajeActual.destino.lng;
-        const nombre = viajeActual.destino.nombre;
-
-        if (confirm(`¿Abrir Google Maps para ir a:\n🏁 ${nombre}?`)) {
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-            window.open(url, '_blank');
-        }
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActual.destino.lat},${viajeActual.destino.lng}&travelmode=driving`;
+        window.open(url, '_blank');
     }
 
-    function navegarADestinoWaze() {
-        if (!viajeActual || !viajeActual.destino) {
-            alert('No hay destino disponible');
-            return;
+    // ✅ LIMPIAR AL SALIR
+    window.addEventListener('beforeunload', () => {
+        if (intervaloActualizacion) {
+            clearInterval(intervaloActualizacion);
         }
-
-        const lat = viajeActual.destino.lat;
-        const lng = viajeActual.destino.lng;
-        const nombre = viajeActual.destino.nombre;
-
-        if (confirm(`¿Abrir Waze para ir a:\n🏁 ${nombre}?`)) {
-            const url = `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
-            window.open(url, '_blank');
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
         }
-    }
+    });
 </script>
-
-
-
-<script src="{{ url_for('static', filename='js/conductor-navegacion.js') }}"></script>
 
 </body>
 </html>

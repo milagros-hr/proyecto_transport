@@ -167,7 +167,7 @@ function iniciarCicloDeActualizacion() {
     console.log("✅ Búsqueda automática activada (cada 5s)");
 }
 
-// 2. AGREGA esta función nueva al final del archivo
+// 2. Verificar si el pasajero aceptó alguna oferta
 async function verificarMisOfertas() {
     try {
         const res = await fetch('/api/conductor/mis-ofertas-pendientes', { credentials: 'same-origin' });
@@ -175,57 +175,44 @@ async function verificarMisOfertas() {
         
         const data = await res.json();
         
-        // A) ¡MATCH! El pasajero confirmó -> Redirigir al mapa de viaje
+        // ✅ ¡MATCH! El pasajero confirmó -> Redirigir automáticamente
         if (data.confirmados && data.confirmados.length > 0) {
-            // Sonido de notificación opcional o alerta
-            alert(`🎉 ¡Pasajero confirmado! Redirigiendo al viaje...`);
-            window.location.href = '/mis-viajes-conductor'; 
+            // Detener el polling
+            if (intervaloActualizacion) {
+                clearInterval(intervaloActualizacion);
+                intervaloActualizacion = null;
+            }
+            
+            const viaje = data.confirmados[0];
+            alert(`🎉 ¡UN PASAJERO ACEPTÓ TU OFERTA!\n\nRuta: ${viaje.origen?.nombre || 'Origen'} → ${viaje.destino?.nombre || 'Destino'}\nPrecio: S/. ${viaje.precio_acordado?.toFixed(2) || viaje.precio_estandar?.toFixed(2)}\n\nSerás redirigido a tu viaje activo.`);
+            window.open('/mis-viajes-conductor', '_self');
             return;
         }
 
-        // B) Renderizar la lista de espera visual
+        // B) Renderizar la lista de espera visual (ofertas pendientes)
         const panel = document.getElementById('panelEspera');
         const lista = document.getElementById('listaEspera');
         
-        // Juntamos ofertas manuales y aceptaciones directas
-        const totalPendientes = (data.pendientes || []).length + (data.aceptadas_esperando || []).length;
+        const totalPendientes = (data.pendientes || []).length;
 
-        if (totalPendientes > 0) {
+        if (totalPendientes > 0 && panel && lista) {
             panel.style.display = 'block';
             let html = '';
 
-            // 1. Contraofertas (Precio personalizado)
-            if (data.pendientes) {
-                data.pendientes.forEach(oferta => {
-                    html += `
-                        <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #ffeeba; font-size: 0.9rem;">
-                            <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-                                <strong>Oferta enviada</strong>
-                                <span style="color:#ff9800; font-weight:700;">S/. ${oferta.precio_ofrecido.toFixed(2)}</span>
-                            </div>
-                            <small style="color: #856404;"><i class="fas fa-user"></i> Esperando al pasajero...</small>
+            data.pendientes.forEach(oferta => {
+                html += `
+                    <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #ffeeba; font-size: 0.9rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                            <strong>Oferta enviada</strong>
+                            <span style="color:#ff9800; font-weight:700;">S/. ${oferta.precio_ofrecido.toFixed(2)}</span>
                         </div>
-                    `;
-                });
-            }
-
-            // 2. Aceptaciones directas (Precio estándar)
-            if (data.aceptadas_esperando) {
-                data.aceptadas_esperando.forEach(sol => {
-                    html += `
-                        <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #c3e6cb; border-left: 4px solid #28a745; font-size: 0.9rem;">
-                            <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-                                <strong>Aceptaste por</strong>
-                                <span style="color:#28a745; font-weight:700;">S/. ${sol.precio_acordado.toFixed(2)}</span>
-                            </div>
-                            <small style="color: #155724;"><i class="fas fa-check"></i> Confirmando inicio...</small>
-                        </div>
-                    `;
-                });
-            }
+                        <small style="color: #856404;"><i class="fas fa-user"></i> Esperando al pasajero...</small>
+                    </div>
+                `;
+            });
 
             lista.innerHTML = html;
-        } else {
+        } else if (panel) {
             panel.style.display = 'none';
         }
 

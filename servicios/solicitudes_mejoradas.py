@@ -336,6 +336,7 @@ def obtener_contraofertas_pasajero(solicitud_id):
     return [c for c in contraofertas 
             if c['solicitud_id'] == solicitud_id and c['estado'] == 'pendiente']
 
+
 def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
     """
     Cancela una solicitud (pasajero o conductor)
@@ -343,7 +344,6 @@ def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
     """
     solicitudes = _leer_json(SOLICITUDES_FILE)
 
-    # Normalizar ids
     try:
         sid = int(solicitud_id)
         uid = int(usuario_id)
@@ -360,7 +360,6 @@ def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
         pasajero_id = sol.get("pasajero_id")
         conductor_id = sol.get("conductor_id")
 
-        # normalizar a int si vienen como str
         try:
             pasajero_id = int(pasajero_id) if pasajero_id is not None else None
         except Exception:
@@ -370,12 +369,11 @@ def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
         except Exception:
             pass
 
-        # Seguridad: solo dueño o conductor asignado
         if uid not in [pasajero_id, conductor_id]:
             return (False, "No autorizado para cancelar esta solicitud")
 
         estado = (sol.get("estado") or "").lower()
-        estados_cancelables = ["pendiente", "aceptada", "confirmado"]  # agrega "en_curso" si quieres
+        estados_cancelables = ["pendiente", "aceptada", "confirmado", "en_curso"]  # ✅ Agregar en_curso
 
         if estado not in estados_cancelables:
             return (False, f"No se puede cancelar en estado: {estado}")
@@ -384,19 +382,18 @@ def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
 
         sol["estado"] = f"cancelado_{quien}"
         sol["motivo_cancelacion"] = motivo or ""
+        sol["fecha_cancelacion"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sol["fecha_actualizacion"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        conductor_prev = sol.get("conductor_id")
-        if conductor_prev:
-            sol["conductor_id_cancelado"] = conductor_prev
-            sol["cancelacion_notificada_conductor"] = False
+        # ✅ Guardar ID del conductor antes de limpiar
+        if conductor_id:
+            sol["conductor_id_cancelado"] = conductor_id
 
-
-        # liberar asignación
         sol["conductor_id"] = None
         sol["precio_acordado"] = None
 
-        _guardar_json_atomic(str(SOLICITUDES_FILE), solicitudes)
+        _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
+        print(f"✅ Solicitud #{sid} cancelada por {quien}. Estado: cancelado_{quien}")
         return (True, sol)
 
     return (False, "Solicitud no encontrada")
@@ -406,8 +403,23 @@ def cancelar_solicitud(solicitud_id, usuario_id, motivo=""):
     """
     Compatibilidad: devuelve SOLO bool (para código antiguo).
     """
-    ok, _payload = cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo)
-    return ok
+    solicitudes = _leer_json(SOLICITUDES_FILE)
+    for sol in solicitudes:
+            if str(sol.get('id')) == str(solicitud_id):
+                if sol.get('estado') in ['pendiente', 'aceptada', 'confirmado', 'en_curso']:
+                    # ✅ Guardar conductor_id antes de limpiarlo
+                    if sol.get('conductor_id'):
+                        sol['conductor_id_cancelado'] = sol['conductor_id']
+                    
+                    sol['estado'] = 'cancelado_pasajero'
+                    sol['motivo_cancelacion'] = motivo
+                    sol['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    sol['fecha_cancelacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    sol['conductor_id'] = None
+                    _guardar_json(SOLICITUDES_FILE, solicitudes)
+                    print(f"✅ Solicitud #{solicitud_id} cancelada. Conductor guardado: {sol.get('conductor_id_cancelado')}")
+                    return True
+    return False
 
 
 def obtener_ofertas_completas_pasajero(pasajero_id):
@@ -505,8 +517,11 @@ def obtener_viajes_conductor(conductor_id):
         viajes = [
             s for s in solicitudes
             if s.get('conductor_id') == conductor_id
-            and s.get('estado') in ['confirmado', 'en_curso', 'completado']
+            and s.get('estado') in ['confirmado', 'en_curso', 'completado', 'cancelado_pasajero']
         ]
+        orden = {'cancelado_pasajero': 0, 'confirmado': 1, 'en_curso': 2, 'completado': 3}
+        viajes.sort(key=lambda v: orden.get(v.get('estado'), 9))
+
         
         # Enriquecer con datos del pasajero
         from servicios.usuarios_repo import buscar_usuario_por_id
@@ -652,7 +667,8 @@ def cancelar_viaje_conductor(conductor_id, solicitud_id, motivo=""):
                 sol['estado'] = 'cancelado_conductor'
                 sol['fecha_cancelacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 sol['motivo_cancelacion'] = motivo
-                sol['conductor_id'] = None  # Liberar para que otros conductores puedan tomar
+                sol['conductor_id_cancelado'] = conductor_id  # ✅ GUARDAR antes de limpiar
+                sol['conductor_id'] = None
                 sol['precio_acordado'] = None
                 
                 _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
@@ -662,21 +678,17 @@ def cancelar_viaje_conductor(conductor_id, solicitud_id, motivo=""):
         
         return None
         
-
-
-        
     except Exception as e:
         print(f"❌ Error cancelando viaje: {e}")
         return None
     
 def obtener_cancelaciones_pendientes_conductor(conductor_id: int):
     """
-    Devuelve solicitudes canceladas por pasajero que pertenecían a este conductor.
-    Sirve para que el conductor "se entere" (alerta/limpieza en su UI).
+    Devuelve solicitudes canceladas por pasajero que pertenecían a este conductor
+    y que aún no han sido vistas por él.
     """
     try:
         solicitudes = _leer_json(SOLICITUDES_FILE)
-
         cid = int(conductor_id)
 
         pendientes = []
@@ -685,21 +697,19 @@ def obtener_cancelaciones_pendientes_conductor(conductor_id: int):
             if estado != "cancelado_pasajero":
                 continue
 
-            # Puede venir en conductor_id o en conductor_id_cancelado (recomendado)
-            c1 = s.get("conductor_id")
-            c2 = s.get("conductor_id_cancelado")
+            # Si ya fue vista por el conductor, no mostrarla
+            if s.get("cancelacion_vista_por_conductor"):
+                continue
 
-            try:
-                c1 = int(c1) if c1 is not None else None
-            except:
-                pass
+            # Buscar en conductor_id_cancelado (donde guardamos el ID antes de limpiarlo)
+            c2 = s.get("conductor_id_cancelado")
             try:
                 c2 = int(c2) if c2 is not None else None
             except:
                 pass
 
-            if cid in [c1, c2]:
-                s["tipo"] = "cancelacion"  # etiqueta útil para el frontend
+            if c2 == cid:
+                s["tipo"] = "cancelacion"
                 pendientes.append(s)
 
         return pendientes
@@ -708,6 +718,35 @@ def obtener_cancelaciones_pendientes_conductor(conductor_id: int):
         print(f"❌ Error obteniendo cancelaciones pendientes conductor: {e}")
         import traceback; traceback.print_exc()
         return []
+
+
+def marcar_cancelacion_vista_conductor(conductor_id: int, solicitud_id: int):
+    """
+    Marca una cancelación como vista por el conductor para que no vuelva a aparecer.
+    """
+    try:
+        solicitudes = _leer_json(SOLICITUDES_FILE)
+        cid = int(conductor_id)
+        sid = int(solicitud_id)
+
+        for s in solicitudes:
+            if s.get("id") == sid:
+                c2 = s.get("conductor_id_cancelado")
+                try:
+                    c2 = int(c2) if c2 is not None else None
+                except:
+                    pass
+                
+                if c2 == cid:
+                    s["cancelacion_vista_por_conductor"] = True
+                    s["fecha_vista_conductor"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
+                    print(f"✅ Cancelación #{sid} marcada como vista por conductor #{cid}")
+                    return True
+        return False
+    except Exception as e:
+        print(f"❌ Error marcando cancelación como vista: {e}")
+        return False
 
 
 def _leer_json(path):
