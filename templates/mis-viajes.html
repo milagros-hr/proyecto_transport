@@ -1,621 +1,572 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransPort - Mi Viaje</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Mi Viaje</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
-      padding: 1rem;
-      color: #333;
-      margin: 0;
-      min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
     }
-
-    @media (min-width: 768px) {
-      body {
-        padding: 2rem;
-      }
+    
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 320px;
+        height: 100vh;
+        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+        overflow-y: auto;
+        z-index: 1000;
+        color: #1a1a1a;
     }
-
-    .container {
-      max-width: 900px;
-      margin: auto;
-      background: rgba(255,255,255,0.95);
-      border-radius: 15px;
-      padding: 1.5rem;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-    }
-
-    @media (min-width: 768px) {
-      .container {
-        border-radius: 20px;
-        padding: 3rem;
-      }
-    }
-
-    .header { 
-      text-align: center; 
-      margin-bottom: 1.5rem;
-    }
-
-    @media (min-width: 768px) {
-      .header {
-        margin-bottom: 2.5rem;
-      }
-    }
-
-    .header h1 { 
-      font-size: 1.6rem; 
-      margin-bottom: 0.5rem;
-      word-wrap: break-word;
-    }
-
-    @media (min-width: 768px) {
-      .header h1 {
-        font-size: 2.2rem;
-      }
-    }
-
-    .header p { 
-      color: #666; 
-      font-size: 0.9rem;
-    }
-
-    .viaje-card {
-      background: white;
-      border-radius: 12px;
-      padding: 0;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
-      overflow: hidden;
-      transition: transform 0.2s;
-    }
-
-    @media (min-width: 768px) {
-      .viaje-card {
-        border-radius: 15px;
-        margin-bottom: 2rem;
-      }
-      .viaje-card:hover { 
-        transform: translateY(-3px); 
-      }
-    }
-
-    .viaje-header {
-      background: #f8f9fa;
-      padding: 1rem;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: .75rem;
-      flex-wrap: wrap;
-    }
-
-    @media (min-width: 768px) {
-      .viaje-header {
+    
+    .header {
         padding: 1.5rem;
-      }
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        border-bottom: 2px solid rgba(255,215,0,0.3);
     }
 
-    .viaje-ruta {
-      font-weight: 700;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      line-height: 1.3;
+    .header h1 {
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        color: #1a1a1a;
+        font-weight: 700;
     }
-
-    @media (min-width: 768px) {
-      .viaje-ruta {
-        font-size: 1.1rem;
-      }
+    
+    .viaje-panel {
+        margin: 1rem;
+        background: rgba(255,215,0,0.15);
+        border-radius: 16px;
+        padding: 1.2rem;
+        border: 2px solid #FFD700;
     }
-
-    .viaje-fecha {
-      font-size: 0.85rem;
-      color: #666;
-      background: white;
-      padding: 0.3rem 0.8rem;
-      border-radius: 20px;
-      border: 1px solid #ddd;
-      white-space: nowrap;
-    }
-
-    @media (min-width: 768px) {
-      .viaje-fecha {
-        font-size: 0.9rem;
-      }
-    }
-
-    .viaje-body {
-      padding: 1.25rem;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
-    }
-
-    @media (min-width: 768px) {
-      .viaje-body {
-        padding: 1.5rem;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-      }
-    }
-
-    .section-title {
-      grid-column: 1 / -1;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #999;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 0.5rem;
-    }
-
-    @media (min-width: 768px) {
-      .section-title {
-        font-size: 0.9rem;
-        grid-column: auto;
-      }
-    }
-
-    .detalle-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.8rem;
-      color: #555;
-      font-size: 0.9rem;
-    }
-
-    @media (min-width: 768px) {
-      .detalle-item {
+    
+    .conductor-header {
+        display: flex;
+        align-items: center;
         gap: 1rem;
-        font-size: 1rem;
-      }
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #FFD700;
     }
 
-    .detalle-item i {
-      color: #ff9800;
-      width: 25px;
-      font-size: 1rem;
-      text-align: center;
-      flex-shrink: 0;
+    .conductor-avatar {
+        width: 55px;
+        height: 55px;
+        background: linear-gradient(45deg, #333, #555);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffd93d;
+        font-size: 1.5rem;
     }
 
-    @media (min-width: 768px) {
-      .detalle-item i {
+    .conductor-info h3 {
         font-size: 1.1rem;
-      }
+        color: #1a1a1a;
+        margin-bottom: 0.2rem;
     }
 
-    .detalle-item strong { 
-      color: #333; 
+    .conductor-vehiculo {
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    .info-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
+        padding: 0.7rem;
+        background: rgba(255,255,255,0.5);
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .info-row i {
+        width: 20px;
+        font-size: 1rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    
+    .info-row strong {
+        display: block;
+        font-size: 0.75rem;
+        color: #888;
+        margin-bottom: 0.15rem;
     }
 
-    .detalle-item span {
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+    .info-row span {
+        color: #1a1a1a;
+        font-weight: 600;
     }
 
     .badge-estado {
-      display: inline-flex;
-      align-items: center;
-      gap: .45rem;
-      padding: .35rem .7rem;
-      border-radius: 999px;
-      font-weight: 800;
-      font-size: .8rem;
-      border: 1px solid rgba(0,0,0,0.08);
-      background: #fff;
-      text-transform: capitalize;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: capitalize;
     }
 
-    @media (min-width: 768px) {
-      .badge-estado {
-        font-size: .85rem;
-      }
-    }
-
-    .estado-confirmado { color: #2e7d32; }
-    .estado-en_curso { color: #1565c0; }
-    .estado-aceptada { color: #ef6c00; }
-    .estado-pendiente { color: #6d4c41; }
-
-    .actions {
-      padding: 1rem;
-      background: #fffcf5;
-      border-top: 1px solid #eee;
-      display: flex;
-      gap: .5rem;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-    }
-
-    @media (min-width: 768px) {
-      .actions {
-        padding: 1rem 1.5rem;
-        gap: .75rem;
-      }
-    }
-
-    @media (max-width: 767px) {
-      .actions {
-        flex-direction: column;
-      }
-    }
-
-    .btn {
-      padding: 0.75rem 1rem;
-      border-radius: 10px;
-      text-decoration: none;
-      font-weight: 800;
-      font-size: 0.85rem;
-      transition: all 0.25s ease;
-      border: none;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      white-space: nowrap;
-      text-align: center;
-      flex: 1;
-      min-width: 0;
-    }
-
-    @media (min-width: 768px) {
-      .btn {
-        padding: 0.8rem 1.2rem;
+    .estado-confirmado { background: #e8f5e9; color: #2e7d32; }
+    .estado-en_curso { background: #e3f2fd; color: #1565c0; }
+    .estado-aceptada { background: #fff3e0; color: #ef6c00; }
+    
+    .btn-grande {
+        width: 100%;
+        padding: 1rem;
+        font-size: 0.95rem;
+        font-weight: 700;
         border-radius: 12px;
-        font-size: 0.9rem;
-        flex: 0 1 auto;
-        min-width: auto;
-      }
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    .btn-cancelar {
+        background: linear-gradient(45deg, #e53935, #c62828);
+        color: white;
+    }
+    
+    .btn-cancelar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(229, 57, 53, 0.4);
     }
 
-    .btn-green {
-      background: linear-gradient(45deg, #4caf50, #45a049);
-      color: white;
-    }
-    .btn-green:hover { 
-      transform: translateY(-2px); 
-      box-shadow: 0 6px 20px rgba(76,175,80,.35); 
+    .btn-cancelar:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
     }
 
-    .btn-blue {
-      background: linear-gradient(45deg, #1e88e5, #1565c0);
-      color: white;
-    }
-    .btn-blue:hover { 
-      transform: translateY(-2px); 
-      box-shadow: 0 6px 20px rgba(21,101,192,.35); 
+    .btn-secondary {
+        background: white;
+        color: #333;
+        border: 2px solid #ddd;
     }
 
-    .btn-danger {
-      background: linear-gradient(45deg, #e53935, #c62828);
-      color: white;
-    }
-    .btn-danger:hover { 
-      transform: translateY(-2px); 
-      box-shadow: 0 6px 20px rgba(198,40,40,.35); 
-    }
-    .btn-danger:disabled { 
-      opacity: .65; 
-      cursor: not-allowed; 
-      transform: none; 
-      box-shadow: none; 
+    .btn-secondary:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
     }
 
-    .btn-gray {
-      background: #eee;
-      color: #333;
-    }
-    .btn-gray:hover { 
-      background: #e0e0e0; 
-      transform: translateY(-1px); 
+    .btn-whatsapp {
+        background: linear-gradient(45deg, #25D366, #128C7E);
+        color: white;
     }
 
+    .btn-whatsapp:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+    }
+
+    .btn-llamar {
+        background: linear-gradient(45deg, #1e88e5, #1565c0);
+        color: white;
+    }
+
+    .btn-llamar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(21, 101, 192, 0.4);
+    }
+    
+    .controls {
+        padding: 0 1rem 1rem;
+    }
+    
     .empty-state {
-      text-align: center;
-      padding: 2rem 1rem;
-      color: #666;
-      background: rgba(255,255,255,.8);
-      border-radius: 12px;
-      border: 1px dashed rgba(0,0,0,.15);
+        text-align: center;
+        padding: 3rem 1.5rem;
     }
-
-    @media (min-width: 768px) {
-      .empty-state {
-        padding: 3rem;
-        border-radius: 16px;
-      }
-    }
-
-    .empty-state i { 
-      font-size: 3rem; 
-      color: #e0e0e0; 
-      margin-bottom: 1rem; 
-    }
-
-    @media (min-width: 768px) {
-      .empty-state i {
-        font-size: 4rem;
-      }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 1rem;
     }
 
     .empty-state p {
-      font-size: 0.95rem;
-      margin: 0.5rem 0;
+        color: #999;
+        margin-bottom: 1rem;
     }
 
-    @media (min-width: 768px) {
-      .empty-state p {
-        font-size: 1rem;
-      }
+    .empty-state .btn-buscar {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 1.5rem;
+        background: linear-gradient(45deg, #4caf50, #45a049);
+        color: white;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 700;
     }
-  </style>
+    
+    #map {
+        position: fixed;
+        top: 0;
+        left: 320px;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+    }
+    
+    @media (max-width: 768px) {
+        .sidebar {
+            width: 100%;
+            height: auto;
+            max-height: 45vh;
+            position: relative;
+        }
+        
+        #map {
+            position: relative;
+            left: 0;
+            top: 0;
+            height: 55vh;
+        }
+
+        body {
+            overflow-y: auto;
+        }
+    }
+</style>
 </head>
 
 <body>
-  <div class="container">
-    <div class="header">
-      <h1><i class="fas fa-car-side"></i> Mi Viaje</h1>
-      <p>Datos del conductor</p>
+    <div class="sidebar">
+        <div class="header">
+            <h1><i class="fas fa-car-side"></i> Mi Viaje</h1>
+        </div>
+
+        {% if viajes and viajes|length > 0 %}
+            {% set viaje = viajes[0] %}
+            
+            {# Datos robustos #}
+            {% set origen_nombre = (viaje.origen.get('nombre') if viaje.origen is mapping else viaje.origen) %}
+            {% set destino_nombre = (viaje.destino.get('nombre') if viaje.destino is mapping else viaje.destino) %}
+            {% set tel_raw = (viaje.conductor_telefono or '') %}
+            {% set tel_digits = tel_raw|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('+', '') %}
+            {% set tel_wa = (tel_digits if tel_digits.startswith('51') else ('51' ~ tel_digits)) %}
+            {% set tel_ok = (tel_digits|length >= 8) %}
+
+            <div class="viaje-panel">
+                <div class="conductor-header">
+                    <div class="conductor-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="conductor-info">
+                        <h3>{{ viaje.conductor_nombre or 'Conductor asignado' }}</h3>
+                        <div class="conductor-vehiculo">
+                            {{ viaje.conductor_modelo or 'Auto' }}
+                            {% if viaje.conductor_color %} ({{ viaje.conductor_color }}){% endif %}
+                            • {{ viaje.conductor_placa or '---' }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <i class="fas fa-map-marker-alt" style="color: #4caf50;"></i>
+                    <div>
+                        <strong>Recoger en:</strong>
+                        <span>{{ origen_nombre }}</span>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <i class="fas fa-flag-checkered" style="color: #f44336;"></i>
+                    <div>
+                        <strong>Destino:</strong>
+                        <span>{{ destino_nombre }}</span>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <i class="fas fa-coins" style="color: #ffd93d;"></i>
+                    <div>
+                        <strong>Tarifa:</strong>
+                        <span>S/. {{ "%.2f"|format(viaje.precio_acordado if viaje.precio_acordado else viaje.precio_estandar) }}</span>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <i class="fas fa-road" style="color: #666;"></i>
+                    <div>
+                        <strong>Distancia total:</strong>
+                        <span>{{ "%.1f"|format(viaje.distancia) if viaje.distancia else '--' }} km</span>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <i class="fas fa-info-circle" style="color: #ff9800;"></i>
+                    <div>
+                        <strong>Estado:</strong>
+                        {% set est = (viaje.estado or '').lower() %}
+                        <span class="badge-estado {% if est == 'confirmado' %}estado-confirmado{% elif est == 'en_curso' %}estado-en_curso{% else %}estado-aceptada{% endif %}">
+                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                            {{ (viaje.estado or 'pendiente').replace('_',' ') }}
+                        </span>
+                    </div>
+                </div>
+
+                {% if viaje.conductor_telefono %}
+                <div class="info-row">
+                    <i class="fas fa-phone" style="color: #1e88e5;"></i>
+                    <div>
+                        <strong>Teléfono:</strong>
+                        <span>{{ viaje.conductor_telefono }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="controls">
+                {% if tel_ok %}
+                <a href="https://wa.me/{{ tel_wa }}?text=Hola, soy tu pasajero del viaje TransPort" 
+                   target="_blank" class="btn-grande btn-whatsapp">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                
+                {% endif %}
+
+                {% set est = (viaje.estado or '').lower() %}
+                {% set puede_cancelar = est in ['pendiente', 'aceptada', 'confirmado'] %}
+                {% if puede_cancelar %}
+                <button id="btnCancelar" class="btn-grande btn-cancelar" onclick="cancelarViaje({{ viaje.id }})">
+                    <i class="fas fa-ban"></i> Cancelar viaje
+                </button>
+                {% endif %}
+
+                <a href="/buscar-viaje" class="btn-grande btn-secondary">
+                    <i class="fas fa-search"></i> Buscar otro viaje
+                </a>
+                <a href="/dashboard" class="btn-grande btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Dashboard
+                </a>
+            </div>
+
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-route"></i>
+                <p>No tienes un viaje activo</p>
+                <a href="/buscar-viaje" class="btn-buscar">
+                    <i class="fas fa-search"></i> Buscar viaje
+                </a>
+                <div style="margin-top: 1rem;">
+                    <a href="/dashboard" style="color: #666; text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+            </div>
+        {% endif %}
     </div>
 
-    {% if viajes and viajes|length > 0 %}
-      {% set viaje = viajes[0] %}
+    <div id="map"></div>
 
-      {# ===== Fecha robusta (elige la primera disponible) ===== #}
-      {% set fecha_raw = viaje.fecha or viaje.fecha_confirmacion or viaje.fecha_actualizacion or viaje.fecha_creacion %}
-      {% set fecha_dia = (fecha_raw.split(' ')[0] if fecha_raw else '--') %}
-      {% set fecha_hora = (fecha_raw.split(' ')[1] if (fecha_raw and (fecha_raw.split(' ')|length > 1)) else '--') %}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-      {# ===== Origen/Destino robusto (dict o string) ===== #}
-      {% set origen_nombre = (viaje.origen.get('nombre') if viaje.origen is mapping else viaje.origen) %}
-      {% set destino_nombre = (viaje.destino.get('nombre') if viaje.destino is mapping else viaje.destino) %}
-
-      {# ===== Teléfono limpio SIN depender de conductor_telefono_clean ===== #}
-      {% set tel_raw = (viaje.conductor_telefono or '') %}
-      {% set tel_digits = tel_raw
-          |replace(' ', '')
-          |replace('-', '')
-          |replace('(', '')
-          |replace(')', '')
-          |replace('+', '')
-      %}
-      {% set tel_wa = (tel_digits if tel_digits.startswith('51') else ('51' ~ tel_digits)) %}
-      {% set tel_ok = (tel_digits|length >= 8) %}
-
-      <div class="viaje-card">
-        
-        <div class="viaje-body">
-          <div>
-            <div class="section-title">Conductor</div>
-
-            <div class="detalle-item">
-              <i class="fas fa-user-circle"></i>
-              <span><strong>{{ viaje.conductor_nombre or 'Aún sin conductor' }}</strong></span>
-            </div>
-
-            <div class="detalle-item">
-              <i class="fas fa-car"></i>
-              <span>
-                {{ viaje.conductor_modelo or 'Auto' }}
-                {% if viaje.conductor_color %} ({{ viaje.conductor_color }}){% endif %}
-              </span>
-            </div>
-
-            <div class="detalle-item">
-              <i class="fas fa-id-card"></i>
-              <span>Placa: <strong>{{ viaje.conductor_placa or '---' }}</strong></span>
-            </div>
-
-            <div class="detalle-item">
-              <i class="fas fa-phone"></i>
-              <span>{{ viaje.conductor_telefono or '---' }}</span>
-            </div>
-          </div>
-
-          <div>
-            <div class="section-title">Detalles del viaje</div>
-
-            <div class="detalle-item">
-              <i class="fas fa-road"></i>
-              <span>Distancia:
-                <strong>
-                  {% if viaje.distancia is not none %}
-                    {{ "%.1f"|format(viaje.distancia) }} km
-                  {% else %}
-                    --
-                  {% endif %}
-                </strong>
-              </span>
-            </div>
-
-            <div class="detalle-item">
-              <i class="fas fa-coins"></i>
-              <span>Precio:
-                <strong>
-                  S/. {{ "%.2f"|format(viaje.precio_acordado if viaje.precio_acordado else viaje.precio_estandar) }}
-                </strong>
-              </span>
-            </div>
-
-            <div class="detalle-item">
-              <i class="fas fa-clock"></i>
-              <span>Hora: {{ fecha_hora }}</span>
-            </div>
-
-            <div class="detalle-item">
-              <i class="fas fa-info-circle"></i>
-              <span>
-                Estado:
-                {% set est = (viaje.estado or '').lower() %}
-                <span class="badge-estado
-                  {% if est == 'confirmado' %}estado-confirmado{% elif est == 'en_curso' %}estado-en_curso{% elif est == 'aceptada' %}estado-aceptada{% else %}estado-pendiente{% endif %}">
-                  <i class="fas fa-circle"></i>
-                  {{ (viaje.estado or 'pendiente').replace('_',' ') }}
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions">
-          {# Mostrar cancelar SOLO en estados que tu backend permite #}
-          {% set est = (viaje.estado or '').lower() %}
-          {% set puede_cancelar = est in ['pendiente', 'aceptada', 'confirmado'] %}
-          {% if puede_cancelar %}
-            <button id="btnCancelar" class="btn btn-danger" onclick="cancelarViaje({{ viaje.id }})">
-              <i class="fas fa-ban"></i> Cancelar viaje
-            </button>
-          {% endif %}
-
-          {% if tel_ok %}
-            
-            
-          {% endif %}
-
-          <a href="/buscar-viaje" class="btn btn-gray">
-            <i class="fas fa-magnifying-glass"></i> Ir a Buscar Viaje
-          </a>
-
-          <a href="{{ url_for('dashboard') }}" class="btn btn-gray">
-            <i class="fas fa-arrow-left"></i> Dashboard
-          </a>
-        </div>
-      </div>
-
-    {% else %}
-      <div class="empty-state">
-        <i class="fas fa-route"></i>
-        <p>No tienes un viaje activo en este momento.</p>
-        <a href="/buscar-viaje" class="btn btn-green" style="margin-top: 1rem;">
-          <i class="fas fa-magnifying-glass"></i> Buscar un viaje
-        </a>
-        <div style="margin-top: 1rem;">
-          <a href="{{ url_for('dashboard') }}" class="btn btn-gray">
-            <i class="fas fa-arrow-left"></i> Volver al Dashboard
-          </a>
-        </div>
-      </div>
-    {% endif %}
-  </div>
-
+<!-- @ts-nocheck -->
 <script>
+    // @ts-nocheck
+    /* eslint-disable */
+    let map;
+    let origenMarker;
+    let destinoMarker;
+    let rutaPolyline;
     let intervaloVerificacion = null;
     let viajeIdActual = null;
 
-    // ✅ Iniciar verificación automática al cargar
-    document.addEventListener('DOMContentLoaded', () => {
-            {% if viajes and viajes|length > 0 %}
-            viajeIdActual = {{ viajes[0].id }};
-            iniciarVerificacion();
-            {% endif %}
+    // Datos del viaje desde Jinja
+    const viajeData = JSON.parse('{{ viaje_json | safe }}' || '{"id": null}');
+
+    const origenIcon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]
     });
 
-    // ✅ Verificar cada 5 segundos si el viaje sigue activo
-    function iniciarVerificacion() {
-        if (intervaloVerificacion) return; // Ya está corriendo
+    const destinoIcon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]
+    });
 
-        intervaloVerificacion = setInterval(async () => {
-        try {
-            const res = await fetch('/api/pasajero/mis-solicitudes', {
-            credentials: 'same-origin'
-            });
-
-            if (!res.ok) throw new Error('Error al verificar');
-
-            const solicitudes = await res.json();
-
-            // ✅ Buscar si mi viaje sigue activo
-            const miViaje = solicitudes.find(s => 
-            s.id === viajeIdActual && 
-            ['pendiente', 'aceptada', 'confirmado', 'en_curso'].includes(s.estado)
-            );
-
-            // ✅ Si fue cancelado, redirigir a la ventana principal
-            if (!miViaje) {
-            console.log('⚠️ Viaje cancelado o finalizado');
-            clearInterval(intervaloVerificacion);
-            alert('🚫 El conductor canceló el viaje.');
-            
-            // FORZAR REDIRECCIÓN A LA VENTANA PRINCIPAL
-            window.top.location.href = '/buscar-viaje'; 
-            }
-
-        } catch (error) {
-            console.error('Error verificando viaje:', error);
+    document.addEventListener('DOMContentLoaded', () => {
+        initMap();
+        
+        if (viajeData.id) {
+            viajeIdActual = viajeData.id;
+            dibujarRuta();
+            iniciarVerificacion();
         }
-        }, 5000); // ✅ Cada 5 segundos
+    });
+
+    function initMap() {
+        const limaCenter = [-12.0464, -77.0428];
+        map = L.map('map').setView(limaCenter, 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap',
+            maxZoom: 19
+        }).addTo(map);
     }
 
-    // ✅ Limpiar intervalo al salir
+    async function dibujarRuta() {
+        if (!viajeData.id) return;
+
+        const origen = viajeData.origen;
+        const destino = viajeData.destino;
+
+        // Marcador origen (verde)
+        origenMarker = L.marker([origen.lat, origen.lng], {
+            icon: L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background: #4caf50; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.3);"><i class="fas fa-map-marker-alt"></i></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            })
+        }).addTo(map).bindPopup(`<b>📍 Punto de recojo</b><br>${origen.nombre}`);
+
+        // Marcador destino (rojo)
+        destinoMarker = L.marker([destino.lat, destino.lng], {
+            icon: L.divIcon({
+                className: 'custom-marker',
+                html: '<div style="background: #f44336; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.3);"><i class="fas fa-flag-checkered"></i></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            })
+        }).addTo(map).bindPopup(`<b>🏁 Destino</b><br>${destino.nombre}`);
+
+        // Dibujar ruta con OSRM
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${origen.lng},${origen.lat};${destino.lng},${destino.lat}?overview=full&geometries=geojson`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.routes && data.routes[0]) {
+                const rutaGeoJSON = data.routes[0].geometry;
+                rutaPolyline = L.geoJSON(rutaGeoJSON, {
+                    style: {
+                        color: '#4caf50',
+                        weight: 6,
+                        opacity: 0.8
+                    }
+                }).addTo(map);
+
+                // Ajustar vista
+                const bounds = L.latLngBounds([
+                    [origen.lat, origen.lng],
+                    [destino.lat, destino.lng]
+                ]);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        } catch (error) {
+            console.error('Error obteniendo ruta OSRM:', error);
+            // Fallback: línea recta
+            rutaPolyline = L.polyline([
+                [origen.lat, origen.lng],
+                [destino.lat, destino.lng]
+            ], { color: '#4caf50', weight: 4 }).addTo(map);
+
+            map.fitBounds(rutaPolyline.getBounds(), { padding: [50, 50] });
+        }
+    }
+
+    function iniciarVerificacion() {
+        if (intervaloVerificacion) return;
+
+        intervaloVerificacion = setInterval(async () => {
+            try {
+                const res = await fetch('/api/pasajero/mis-solicitudes', {
+                    credentials: 'same-origin'
+                });
+
+                if (!res.ok) throw new Error('Error al verificar');
+
+                const solicitudes = await res.json();
+
+                const miViaje = solicitudes.find(s => 
+                    s.id === viajeIdActual && 
+                    ['pendiente', 'aceptada', 'confirmado', 'en_curso'].includes(s.estado)
+                );
+
+                if (!miViaje) {
+                    console.log('⚠️ Viaje cancelado o finalizado');
+                    clearInterval(intervaloVerificacion);
+                    alert('🚫 El conductor canceló el viaje o fue finalizado.');
+                    window.top.location.href = '/buscar-viaje';
+                }
+
+            } catch (error) {
+                console.error('Error verificando viaje:', error);
+            }
+        }, 5000);
+    }
+
     window.addEventListener('beforeunload', () => {
         if (intervaloVerificacion) {
-        clearInterval(intervaloVerificacion);
+            clearInterval(intervaloVerificacion);
         }
     });
 
-    // ✅ Función de cancelar viaje (ya la tienes)
     async function cancelarViaje(viajeId) {
-        if (!confirm("¿Cancelar el viaje? Volverás a Buscar Viaje.")) return;
+        if (!confirm("¿Cancelar el viaje?")) return;
 
         const btn = document.getElementById("btnCancelar");
         if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
         }
 
         try {
-        const res = await fetch("/api/pasajero/cancelar-viaje", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ solicitud_id: viajeId, motivo: "Cancelado por el pasajero" })
-        });
+            const res = await fetch("/api/pasajero/cancelar-viaje", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ solicitud_id: viajeId, motivo: "Cancelado por el pasajero" })
+            });
 
-        const data = await res.json().catch(() => ({}));
+            const data = await res.json().catch(() => ({}));
 
-        if (res.ok && data.ok) {
-            // Detener verificación
-            if (intervaloVerificacion) {
-            clearInterval(intervaloVerificacion);
+            if (res.ok && data.ok) {
+                if (intervaloVerificacion) {
+                    clearInterval(intervaloVerificacion);
+                }
+                alert("✅ Viaje cancelado exitosamente.");
+                window.top.location.href = "/buscar-viaje";
+                return;
             }
-            
-            alert("✅ Viaje cancelado exitosamente.");
-            
-            // FORZAR REDIRECCIÓN A LA VENTANA PRINCIPAL
-            window.top.location.href = "/buscar-viaje"; 
-            return;
-        }
 
-        alert("❌ No se pudo cancelar: " + (data.error || ("HTTP " + res.status)));
+            alert("❌ No se pudo cancelar: " + (data.error || ("HTTP " + res.status)));
         } catch (e) {
-        console.error(e);
-        alert("❌ Error al cancelar el viaje");
+            console.error(e);
+            alert("❌ Error al cancelar el viaje");
         } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-ban"></i> Cancelar viaje';
-        }
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-ban"></i> Cancelar viaje';
+            }
         }
     }
 </script>

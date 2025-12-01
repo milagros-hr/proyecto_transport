@@ -6,6 +6,8 @@ Usa la estructura COLA para manejar solicitudes en orden FIFO
 """
 import json
 import os
+import time
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from servicios.usuarios_repo import _guardar_json_atomic
@@ -25,6 +27,88 @@ VIAJES_FILE = DATA_DIR / "viajes.json"
 # - Esto es justo y eficiente para el sistema de transporte
 
 cola_solicitudes = Cola()  # Cola en memoria para solicitudes pendientes
+
+
+# ============================================
+# FUNCIONES DE COMPATIBILIDAD (de solicitudes.py)
+# ============================================
+
+def generar_solicitud_id():
+    """Genera un ID único para solicitudes"""
+    return f"sol-{int(time.time()*1000)}-{uuid.uuid4().hex[:8]}"
+
+
+def encolar_solicitud(solicitud: dict):
+    """Encola una solicitud agregando un ID único si no existe"""
+    if 'solicitud_id' not in solicitud and 'id' not in solicitud:
+        solicitud['solicitud_id'] = generar_solicitud_id()
+    cola_solicitudes.encolar(solicitud)
+    return solicitud.get('solicitud_id') or solicitud.get('id')
+
+
+def listar_solicitudes():
+    """Combina solicitudes en memoria + archivo + viajes.json"""
+    resultado = []
+    try:
+        if hasattr(cola_solicitudes, "to_list"):
+            resultado = cola_solicitudes.to_list() or []
+        else:
+            temp = []
+            while len(cola_solicitudes):
+                temp.append(cola_solicitudes.desencolar())
+            for s in temp:
+                cola_solicitudes.encolar(s)
+            resultado = temp
+
+        # Añadir las guardadas en solicitudes.json
+        archivo = _leer_json(SOLICITUDES_FILE)
+        for s in archivo:
+            if not any(str(r.get("id")) == str(s.get("id")) for r in resultado):
+                resultado.append(s)
+
+        # Añadir también desde viajes.json (sin conductor)
+        viajes = _leer_json(VIAJES_FILE)
+        for v in viajes:
+            if v.get('conductor_id') in (None, 0, ''):
+                if not any(str(r.get("id")) == str(v.get("id")) for r in resultado):
+                    resultado.append(v)
+        return resultado
+    except Exception as e:
+        print("❌ Error en listar_solicitudes:", e)
+        return []
+
+
+def leer_solicitudes():
+    """Para el endpoint /api/solicitudes_cercanas"""
+    return listar_solicitudes()
+
+
+def aceptar_solicitud_por_id(solicitud_id):
+    """Busca y elimina una solicitud de la cola o archivo."""
+    aceptada = None
+    temp = []
+    try:
+        while len(cola_solicitudes):
+            s = cola_solicitudes.desencolar()
+            sid = s.get("solicitud_id") or s.get("viaje_id") or s.get("id")
+            if str(sid) == str(solicitud_id) and aceptada is None:
+                aceptada = s
+                continue
+            temp.append(s)
+    except Exception as e:
+        print("Error aceptar_solicitud_por_id:", e)
+    finally:
+        for item in temp:
+            try:
+                cola_solicitudes.encolar(item)
+            except Exception:
+                pass
+
+    # Quitar del archivo también
+    data = _leer_json(SOLICITUDES_FILE)
+    data = [d for d in data if str(d.get("id")) != str(solicitud_id)]
+    _guardar_json(SOLICITUDES_FILE, data)
+    return aceptada
 
 
 def _sincronizar_cola_desde_json():
@@ -379,25 +463,47 @@ def aceptar_solicitud_directa(conductor_id, solicitud_id):
     """
     El conductor acepta el precio estándar directamente.
     
-    ESTRUCTURA DE DATOS: Al aceptar, la solicitud se DESENCOLA (sale de la cola FIFO).
+    FLUJO CORRECTO:
+    1. El conductor acepta → se crea una OFERTA (contraoferta con precio estándar)
+    2. La solicitud sigue pendiente
+    3. El pasajero ve TODAS las ofertas y elige una
+    4. Al elegir, se rechazan las demás ofertas
     """
     solicitudes = _leer_json(SOLICITUDES_FILE)
     
-    for sol in solicitudes:
-        if sol['id'] == solicitud_id and sol.get('estado') == 'pendiente':
-            sol['conductor_id'] = conductor_id
-            sol['precio_acordado'] = sol['precio_estandar']
-            sol['estado'] = 'aceptada'
-            sol['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            # ✅ DESENCOLAR: Remover de la cola FIFO
-            _desencolar_solicitud(solicitud_id)
-            
-            _guardar_json(SOLICITUDES_FILE, solicitudes)
-            print(f"✅ Solicitud #{solicitud_id} aceptada por conductor #{conductor_id}")
-            return sol
+    sol = next((s for s in solicitudes if s['id'] == solicitud_id and s.get('estado') == 'pendiente'), None)
+    if not sol:
+        return None
     
-    return None
+    contraofertas = _leer_json(CONTRAOFERTAS_FILE)
+    
+    ya_oferto = any(
+        c.get('conductor_id') == conductor_id 
+        and c.get('solicitud_id') == solicitud_id 
+        and c.get('estado') == 'pendiente'
+        for c in contraofertas
+    )
+    if ya_oferto:
+        return {"error": "Ya tienes una oferta pendiente para esta solicitud"}
+    
+    nuevo_id = max([c.get('id', 0) for c in contraofertas], default=0) + 1
+    
+    oferta = {
+        'id': nuevo_id,
+        'solicitud_id': solicitud_id,
+        'conductor_id': conductor_id,
+        'precio_ofrecido': sol['precio_estandar'],
+        'mensaje': 'Acepto el precio estándar',
+        'estado': 'pendiente',
+        'tipo': 'aceptacion_directa',
+        'fecha_creacion': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    contraofertas.append(oferta)
+    _guardar_json(CONTRAOFERTAS_FILE, contraofertas)
+    
+    print(f"✅ Conductor #{conductor_id} aceptó tarifa estándar para solicitud #{solicitud_id}")
+    return oferta
 
 def pasajero_acepta_contraoferta(pasajero_id, contraoferta_id):
     """
@@ -528,6 +634,18 @@ def cancelar_solicitud_detalle(solicitud_id, usuario_id, motivo=""):
         sol["conductor_id"] = None
         sol["precio_acordado"] = None
 
+        # ✅ Rechazar todas las contraofertas pendientes de esta solicitud
+        contraofertas = _leer_json(CONTRAOFERTAS_FILE)
+        for c in contraofertas:
+            if c.get('solicitud_id') == sid and c.get('estado') == 'pendiente':
+                c['estado'] = 'rechazada'
+                c['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                c['motivo_rechazo'] = 'Solicitud cancelada por pasajero'
+        _guardar_json(CONTRAOFERTAS_FILE, contraofertas)
+        
+        # ✅ Desencolar la solicitud de la cola FIFO
+        _desencolar_solicitud(sid)
+
         _guardar_json_atomic(SOLICITUDES_FILE, solicitudes)
         print(f"✅ Solicitud #{sid} cancelada por {quien}. Estado: cancelado_{quien}")
         return (True, sol)
@@ -562,17 +680,23 @@ def obtener_ofertas_completas_pasajero(pasajero_id):
     """
     Obtiene TODAS las ofertas para un pasajero:
     - Contraofertas con precio personalizado (pendientes)
-    - Ofertas aceptadas directamente al precio estándar (estado='aceptada')
+    - Aceptaciones directas al precio estándar (pendientes)
+    
+    FLUJO CORRECTO: 
+    - Todas las ofertas (aceptaciones + contraofertas) están en contraofertas.json
+    - El pasajero ve TODAS y elige UNA
+    - Al elegir, se rechazan las demás
     """
     try:
+        from servicios.usuarios_repo import buscar_usuario_por_id
+        
         solicitudes = _leer_json(SOLICITUDES_FILE)
         contraofertas_data = _leer_json(CONTRAOFERTAS_FILE)
 
-        # Encontrar solicitudes activas del pasajero (pendiente O aceptada)
         mis_solicitudes_ids = {
             s['id'] for s in solicitudes
             if s.get('pasajero_id') == pasajero_id 
-            and s.get('estado') in ['pendiente', 'aceptada']
+            and s.get('estado') == 'pendiente'
         }
 
         if not mis_solicitudes_ids:
@@ -586,50 +710,32 @@ def obtener_ofertas_completas_pasajero(pasajero_id):
 
             ofertas = []
 
-            # 1. Agregar contraofertas pendientes
-            contraofertas = [
+            ofertas_pendientes = [
                 c for c in contraofertas_data
                 if c.get('solicitud_id') == sol['id'] and c.get('estado') == 'pendiente'
             ]
 
-            for contra in contraofertas:
-                from servicios.usuarios_repo import buscar_usuario_por_id
-                conductor = buscar_usuario_por_id(contra['conductor_id'], 'conductor')
+            for oferta in ofertas_pendientes:
+                conductor = buscar_usuario_por_id(oferta['conductor_id'], 'conductor')
                 if conductor:
-                    contra['conductor_nombre'] = conductor.get('nombre', 'Conductor')
-                    contra['conductor_vehiculo'] = f"{conductor.get('modelo', 'N/D')} {conductor.get('color', '')} - {conductor.get('placa', '')}"
-                    contra['conductor_telefono'] = conductor.get('telefono', 'N/A')
-                    contra['conductor_calificacion'] = 4.5
-                    contra['tipo_oferta'] = 'contraoferta'
-                    ofertas.append(contra)
+                    oferta['conductor_nombre'] = conductor.get('nombre', 'Conductor')
+                    oferta['conductor_vehiculo'] = f"{conductor.get('modelo', 'N/D')} {conductor.get('color', '')} - {conductor.get('placa', '')}"
+                    oferta['conductor_telefono'] = conductor.get('telefono', 'N/A')
+                    oferta['conductor_calificacion'] = 4.5
+                    
+                    if oferta.get('tipo') == 'aceptacion_directa':
+                        oferta['tipo_oferta'] = 'aceptacion_directa'
+                        oferta['mensaje'] = '✅ Acepta tu precio estándar'
+                    else:
+                        oferta['tipo_oferta'] = 'contraoferta'
+                    
+                    ofertas.append(oferta)
 
-            # 2. Si la solicitud fue aceptada directamente, agregar como "oferta"
-            if sol.get('estado') == 'aceptada' and sol.get('conductor_id'):
-                from servicios.usuarios_repo import buscar_usuario_por_id
-                conductor = buscar_usuario_por_id(sol['conductor_id'], 'conductor')
-                
-                if conductor:
-                    oferta_directa = {
-                        'id': f"directa_{sol['id']}",
-                        'solicitud_id': sol['id'],
-                        'conductor_id': sol['conductor_id'],
-                        'conductor_nombre': conductor.get('nombre', 'Conductor'),
-                        'conductor_vehiculo': f"{conductor.get('modelo', 'N/D')} {conductor.get('color', '')} - {conductor.get('placa', '')}",
-                        'conductor_telefono': conductor.get('telefono', 'N/A'),
-                        'conductor_calificacion': 4.5,
-                        'precio_ofrecido': sol.get('precio_acordado') or sol.get('precio_estandar'),
-                        'mensaje': '✅ Este conductor aceptó tu solicitud al precio estándar',
-                        'tipo_oferta': 'aceptacion_directa',
-                        'estado': 'aceptada',
-                        'fecha_creacion': sol.get('fecha_actualizacion') or sol.get('fecha_creacion')
-                    }
-                    ofertas.append(oferta_directa)
-
-            if ofertas:
-                resultado.append({
-                    "solicitud": sol,
-                    "contraofertas": ofertas  # Mantener nombre "contraofertas" para compatibilidad
-                })
+            # Incluir solicitud aunque no tenga ofertas (para poder cancelarla)
+            resultado.append({
+                "solicitud": sol,
+                "contraofertas": ofertas  # Puede estar vacío
+            })
 
         return resultado
 

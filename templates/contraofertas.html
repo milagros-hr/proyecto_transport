@@ -15,6 +15,36 @@
             padding: 1rem;
         }
         
+        /* Modo embed: sin fondo, sin padding, ocupa todo */
+        body.embed-mode {
+            background: transparent;
+            padding: 0;
+            min-height: auto;
+            height: 100%;
+        }
+        
+        body.embed-mode .container {
+            border-radius: 0;
+            box-shadow: none;
+            padding: 1rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        body.embed-mode .header {
+            margin-bottom: 1rem;
+        }
+        
+        body.embed-mode .btn-back {
+            display: none !important;
+        }
+        
+        body.embed-mode #listaContraofertas {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
         .container {
             max-width: 100%;
             margin: 0 auto;
@@ -224,6 +254,20 @@
             background: #d0d0d0;
         }
         
+        .btn-cancelar-solicitud {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+            width: 100%;
+            justify-content: center;
+            margin-top: 1rem;
+            padding: 0.8rem;
+        }
+        
+        .btn-cancelar-solicitud:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
+        }
+        
         .btn-back {
             display: inline-flex;
             align-items: center;
@@ -338,6 +382,16 @@
 
     <script>
         // =========================================
+        // DETECTAR MODO EMBED
+        // =========================================
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('embed') === '1') {
+                document.body.classList.add('embed-mode');
+            }
+        })();
+
+        // =========================================
         // AUTO-ACTUALIZACIÓN CADA 5 SEGUNDOS
         // =========================================
         let intervaloActualizacion;
@@ -371,8 +425,12 @@
 
             if (action === 'aceptar-directo') {
                 const solicitudId = Number(btn.dataset.solicitudId);
-                // tu función ya existe:
                 aceptarAceptacionDirecta('directo', solicitudId);
+            }
+
+            if (action === 'cancelar-solicitud') {
+                const solicitudId = Number(btn.dataset.solicitudId);
+                cancelarSolicitud(solicitudId);
             }
         });
 
@@ -430,9 +488,13 @@
                 return;
             }
             
+            // Verificar si hay solicitudes sin ofertas para mostrar botón cancelar
+            const solicitudesSinOfertas = grupos.filter(g => !g.contraofertas || g.contraofertas.length === 0);
+            
             container.innerHTML = grupos.map(grupo => {
                 const sol = grupo.solicitud;
-                const contraofertas = grupo.contraofertas;
+                const contraofertas = grupo.contraofertas || [];
+                const tieneOfertas = contraofertas.length > 0;
                 
                 return `
                     <div class="solicitud-grupo">
@@ -461,12 +523,26 @@
                             </div>
                         </div>
                         
-                        <h3 class="contraofertas-titulo">
-                            <i class="fas fa-users"></i>
-                            ${contraofertas.length} ${contraofertas.length === 1 ? 'Oferta' : 'Ofertas'} de Conductores
-                        </h3>
+                        ${tieneOfertas ? `
+                            <h3 class="contraofertas-titulo">
+                                <i class="fas fa-users"></i>
+                                ${contraofertas.length} ${contraofertas.length === 1 ? 'Oferta' : 'Ofertas'} de Conductores
+                            </h3>
+                            
+                            ${contraofertas.map(contra => renderizarContraoferta(contra, sol.precio_estandar)).join('')}
+                        ` : `
+                            <div class="empty-state" style="padding: 1.5rem; background: #f8f9fa; border-radius: 10px; margin: 1rem 0;">
+                                <i class="fas fa-hourglass-half" style="font-size: 2rem; color: #ffc107;"></i>
+                                <p style="margin: 0.5rem 0; font-weight: 600;">Esperando conductores...</p>
+                                <p style="font-size: 0.85rem; color: #666;">
+                                    Los conductores cercanos verán tu solicitud y podrán aceptarla.
+                                </p>
+                            </div>
+                        `}
                         
-                        ${contraofertas.map(contra => renderizarContraoferta(contra, sol.precio_estandar)).join('')}
+                        <button type="button" class="btn btn-cancelar-solicitud" data-action="cancelar-solicitud" data-solicitud-id="${sol.id}" style="width: 100%; margin-top: 1rem; background: #dc3545; color: white; padding: 0.8rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                            <i class="fas fa-times-circle"></i> Cancelar solicitud
+                        </button>
                     </div>
                 `;
             }).join('');
@@ -541,18 +617,12 @@
                     ` : ''}
 
                     <div class="acciones">
-                    ${!esAceptacionDirecta ? `
                         <button type="button" class="btn btn-rechazar" data-action="rechazar" data-id="${contra.id}">
                         <i class="fas fa-times"></i> Rechazar
                         </button>
                         <button type="button" class="btn btn-aceptar" data-action="aceptar" data-id="${contra.id}">
-                        <i class="fas fa-check"></i> Aceptar Oferta
+                        <i class="fas fa-check"></i> ${esAceptacionDirecta ? 'Confirmar Viaje' : 'Aceptar Oferta'}
                         </button>
-                    ` : `
-                        <button type="button" class="btn btn-aceptar" data-action="aceptar-directo" data-solicitud-id="${contra.solicitud_id}" style="width: 100%;">
-                        <i class="fas fa-rocket"></i> Confirmar e Iniciar Viaje
-                        </button>
-                    `}
                     </div>
                 </div>
             `;
@@ -580,8 +650,12 @@
                 
                 if (data.ok) {
                     alert('✅ ¡Viaje confirmado! El conductor recibirá una notificación.');
-                    // Recargar página o redirigir a mis viajes
-                    window.location.href = '/mis-viajes';
+                    // Si estamos en modo embed, redirigir la página padre
+                    if (window.parent !== window) {
+                        window.parent.location.href = '/mis-viajes';
+                    } else {
+                        window.location.href = '/mis-viajes';
+                    }
                 } else {
                     alert('❌ ' + (data.error || 'Error al aceptar'));
                 }
@@ -613,7 +687,11 @@
                 
                 if (data.ok) {
                     alert('✅ ¡Viaje confirmado! El conductor iniciará tu recorrido pronto.');
-                    window.location.href = '/mis-viajes';
+                    if (window.parent !== window) {
+                        window.parent.location.href = '/mis-viajes';
+                    } else {
+                        window.location.href = '/mis-viajes';
+                    }
                 } else {
                     alert('❌ ' + (data.error || 'Error al confirmar'));
                 }
@@ -624,6 +702,45 @@
             }
         }        
 
+
+        // =========================================
+        // CANCELAR SOLICITUD COMPLETA
+        // =========================================
+        async function cancelarSolicitud(solicitudId) {
+            if (!confirm('¿Cancelar esta solicitud? Se rechazarán todas las ofertas de conductores.')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/pasajero/cancelar-solicitud', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ solicitud_id: solicitudId })
+                });
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                
+                if (data.ok) {
+                    alert('✅ Solicitud cancelada correctamente.');
+                    // Redirigir a /buscar-viaje
+                    if (window.parent !== window) {
+                        // Estamos en un iframe, redirigir el padre
+                        window.parent.location.href = '/buscar-viaje';
+                    } else {
+                        window.location.href = '/buscar-viaje';
+                    }
+                } else {
+                    alert('❌ ' + (data.error || 'Error al cancelar'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Error al cancelar la solicitud');
+            }
+        }
 
         // RECHAZAR CONTRAOFERTA
 

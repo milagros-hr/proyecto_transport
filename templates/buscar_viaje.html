@@ -204,16 +204,16 @@
             box-shadow: 0 6px 18px rgba(0,0,0,.15); font-weight: 700; padding: .25rem .5rem !important;
         }
 
-        /* ✅ Contraofertas dentro del panel izquierdo (full) */
+        /* ✅ Contraofertas dentro del panel izquierdo (full height) */
         #panelContra {
             display: none;
             flex: 1;
-            min-height: 320px;
-            margin-top: 1rem;
+            min-height: 0;
             border-radius: 14px;
             overflow: hidden;
             border: 1px solid rgba(0,0,0,.10);
             background: #fff;
+            flex-direction: column;
         }
         #panelContraHeader{
             display:flex;
@@ -225,6 +225,7 @@
             background: rgba(0,0,0,.02);
             font-size:14px;
             font-weight:700;
+            flex-shrink: 0;
         }
         #panelContraHeader .mini-btns { display:flex; gap:8px; }
         .mini-btn{
@@ -235,10 +236,16 @@
             font-weight:700;
             font-size:12px;
             background: rgba(0,0,0,.07);
+            transition: all 0.2s ease;
+        }
+        .mini-btn:hover {
+            background: #ffd93d;
+            color: #333;
         }
         #contraIframe {
             width: 100%;
-            height: calc(100% - 48px);
+            flex: 1;
+            min-height: 400px;
             border: 0;
         }
 
@@ -488,7 +495,9 @@ document.addEventListener("DOMContentLoaded", function() {
     function showContra() {
         if (panelBuscar) panelBuscar.style.display = "none";
         if (panelSent) panelSent.style.display = "none";
-        if (panelContra) panelContra.style.display = "block";
+        if (panelContra) {
+            panelContra.style.display = "flex";
+        }
         if (ifr) ifr.src = "/contraofertas?embed=1&ts=" + Date.now();
         lockMap();
     }

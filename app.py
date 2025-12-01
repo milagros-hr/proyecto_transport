@@ -10,7 +10,7 @@ from servicios.usuarios_repo import (
     get_viajes_por_pasajero,
     actualizar_usuario
 )
-from servicios.solicitudes import (
+from servicios.solicitudes_mejoradas import (
     encolar_solicitud, 
     listar_solicitudes, 
     aceptar_solicitud_por_id,
@@ -53,7 +53,7 @@ from servicios.usuarios_repo import (
     listar_conductores_disponibles
 )
 
-from servicios.solicitudes import encolar_solicitud
+from servicios.solicitudes_mejoradas import encolar_solicitud
 from servicios.gestor_rutas import calcular_mejor_ruta
 
 app = Flask(__name__)
@@ -304,7 +304,7 @@ def mis_viajes():
 
     # Si no hay viaje activo, mostramos vacío
     if not activos:
-        return render_template("mis-viajes.html", viajes=[])
+        return render_template("mis-viajes.html", viajes=[], viaje_json='{\"id\": null}')
 
     # ✅ Elegir el más reciente (por fecha_actualizacion o fecha_creacion)
     def _key_fecha(s):
@@ -337,8 +337,45 @@ def mis_viajes():
         viaje["conductor_color"] = ""
         viaje["conductor_telefono_clean"] = ""
 
+    # ✅ Calcular la ruta del grafo para mostrar el recorrido
+    ruta_grafo = []
+    try:
+        origen_nombre = viaje.get("origen", {})
+        destino_nombre = viaje.get("destino", {})
+        
+        if isinstance(origen_nombre, dict):
+            origen_nombre = origen_nombre.get("nombre", "")
+        if isinstance(destino_nombre, dict):
+            destino_nombre = destino_nombre.get("nombre", "")
+        
+        if origen_nombre and destino_nombre:
+            from servicios.gestor_rutas import calcular_mejor_ruta
+            distancia_grafo, ruta_grafo = calcular_mejor_ruta(origen_nombre, destino_nombre)
+            if distancia_grafo == float("inf"):
+                ruta_grafo = [origen_nombre, destino_nombre]
+    except Exception as e:
+        print(f"Error calculando ruta grafo: {e}")
+        ruta_grafo = []
+
     # ✅ Le pasamos una lista con 1 solo viaje (para no tocar tu template mucho)
-    return render_template("mis-viajes.html", viajes=[viaje])
+    # Crear JSON para JavaScript
+    viaje_json_data = {
+        "id": viaje.get("id"),
+        "origen": {
+            "nombre": viaje.get("origen", {}).get("nombre", "") if isinstance(viaje.get("origen"), dict) else viaje.get("origen", ""),
+            "lat": viaje.get("origen", {}).get("lat", -12.0464) if isinstance(viaje.get("origen"), dict) else -12.0464,
+            "lng": viaje.get("origen", {}).get("lng", -77.0428) if isinstance(viaje.get("origen"), dict) else -77.0428
+        },
+        "destino": {
+            "nombre": viaje.get("destino", {}).get("nombre", "") if isinstance(viaje.get("destino"), dict) else viaje.get("destino", ""),
+            "lat": viaje.get("destino", {}).get("lat", -12.1) if isinstance(viaje.get("destino"), dict) else -12.1,
+            "lng": viaje.get("destino", {}).get("lng", -77.0) if isinstance(viaje.get("destino"), dict) else -77.0
+        },
+        "estado": viaje.get("estado", "")
+    }
+    viaje_json = json.dumps(viaje_json_data)
+    
+    return render_template("mis-viajes.html", viajes=[viaje], ruta_grafo=ruta_grafo, viaje_json=viaje_json)
 
 
 
@@ -783,7 +820,12 @@ def api_solicitudes_cercanas_conductor():
 @requiere_login
 def api_aceptar_solicitud():
     """
-    Conductor acepta una solicitud con el precio estándar
+    Conductor acepta una solicitud con el precio estándar.
+    
+    FLUJO CORRECTO:
+    - Esto crea una OFERTA (igual que contraoferta pero con precio estándar)
+    - La solicitud sigue pendiente
+    - El pasajero ve TODAS las ofertas y elige una
     """
     if session.get('user_type') != 'conductor':
         return jsonify({"error": "Solo conductores"}), 403
@@ -797,7 +839,9 @@ def api_aceptar_solicitud():
         resultado = aceptar_solicitud_directa(conductor_id, solicitud_id)
         
         if resultado:
-            return jsonify({"ok": True, "solicitud": resultado}), 200
+            if isinstance(resultado, dict) and resultado.get("error"):
+                return jsonify({"error": resultado["error"]}), 400
+            return jsonify({"ok": True, "oferta": resultado, "mensaje": "Tu oferta fue enviada. Espera que el pasajero te elija."}), 200
         else:
             return jsonify({"error": "No se pudo aceptar la solicitud"}), 400
             
@@ -1057,7 +1101,7 @@ def solicitudes_cercanas():
         lng = float(request.args.get("lng", -77.0428))
 
         # Cargar solicitudes desde archivo JSON
-        from servicios.solicitudes import leer_solicitudes
+        from servicios.solicitudes_mejoradas import leer_solicitudes
         solicitudes = leer_solicitudes()
 
         # Filtro básico: devolver las más cercanas (simulado)
@@ -1655,7 +1699,8 @@ def api_conductor_mis_ofertas_pendientes():
     """
     Devuelve:
     - pendientes: contraofertas enviadas esperando respuesta
-    - confirmados: viajes confirmados listos para iniciar (para redirigir automáticamente)
+    - confirmados: viajes confirmados listos para iniciar
+    - rechazadas: contraofertas rechazadas (pasajero eligió a otro) - para notificar
     """
     if session.get('user_type') != 'conductor':
         return jsonify({"error": "Solo conductores"}), 403
@@ -1663,25 +1708,30 @@ def api_conductor_mis_ofertas_pendientes():
     try:
         conductor_id = session['user_id']
 
-        from servicios.solicitudes_mejoradas import _leer_json, CONTRAOFERTAS_FILE, SOLICITUDES_FILE
+        from servicios.solicitudes_mejoradas import _leer_json, CONTRAOFERTAS_FILE, SOLICITUDES_FILE, _guardar_json
         contraofertas = _leer_json(CONTRAOFERTAS_FILE)
         solicitudes = _leer_json(SOLICITUDES_FILE)
 
         sol_by_id = {s.get("id"): s for s in solicitudes}
 
-        # Contraofertas pendientes
+        from servicios.usuarios_repo import buscar_usuario_por_id
+
+        # 1. Contraofertas pendientes
         mis_pendientes = [
             c for c in contraofertas
             if c.get("conductor_id") == conductor_id and c.get("estado") == "pendiente"
         ]
-
-        from servicios.usuarios_repo import buscar_usuario_por_id
 
         pendientes = []
         for c in mis_pendientes:
             item = dict(c)
             sol = sol_by_id.get(c.get("solicitud_id"))
             if sol:
+                # Si la solicitud ya no está pendiente, marcar la contraoferta como rechazada
+                if sol.get("estado") != "pendiente":
+                    c["estado"] = "rechazada"
+                    c["motivo"] = "El pasajero eligió a otro conductor"
+                    continue  # No la incluimos en pendientes
                 item["solicitud"] = sol
                 pasajero = buscar_usuario_por_id(sol.get("pasajero_id"), "pasajero")
                 if pasajero:
@@ -1689,20 +1739,70 @@ def api_conductor_mis_ofertas_pendientes():
                     item["pasajero_telefono"] = pasajero.get("telefono", "N/A")
             pendientes.append(item)
 
-        # ✅ Viajes confirmados (pasajero aceptó, listo para iniciar)
+        # 2. Contraofertas rechazadas (no vistas aún por el conductor)
+        mis_rechazadas = [
+            c for c in contraofertas
+            if c.get("conductor_id") == conductor_id 
+            and c.get("estado") == "rechazada"
+            and not c.get("vista_por_conductor")
+        ]
+
+        rechazadas = []
+        for c in mis_rechazadas:
+            item = dict(c)
+            sol = sol_by_id.get(c.get("solicitud_id"))
+            if sol:
+                item["solicitud"] = sol
+                item["origen_nombre"] = sol.get("origen", {}).get("nombre", "Origen")
+                item["destino_nombre"] = sol.get("destino", {}).get("nombre", "Destino")
+            rechazadas.append(item)
+
+        # 3. Viajes confirmados (pasajero aceptó, listo para iniciar)
         confirmados = [
             s for s in solicitudes
             if s.get("conductor_id") == conductor_id 
             and s.get("estado") in ["confirmado", "en_curso"]
         ]
 
+        # Guardar cambios (contraofertas actualizadas)
+        _guardar_json(CONTRAOFERTAS_FILE, contraofertas)
+
         return jsonify({
             "pendientes": pendientes,
-            "confirmados": confirmados
+            "confirmados": confirmados,
+            "rechazadas": rechazadas
         }), 200
 
     except Exception as e:
         print("❌ Error en /api/conductor/mis-ofertas-pendientes:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/conductor/marcar-rechazo-visto")
+@requiere_login
+def api_marcar_rechazo_visto():
+    """Marca una contraoferta rechazada como vista para que no vuelva a aparecer"""
+    if session.get('user_type') != 'conductor':
+        return jsonify({"error": "Solo conductores"}), 403
+    
+    try:
+        data = request.get_json()
+        contraoferta_id = data.get('contraoferta_id')
+        conductor_id = session['user_id']
+        
+        from servicios.solicitudes_mejoradas import _leer_json, CONTRAOFERTAS_FILE, _guardar_json
+        contraofertas = _leer_json(CONTRAOFERTAS_FILE)
+        
+        for c in contraofertas:
+            if c.get('id') == contraoferta_id and c.get('conductor_id') == conductor_id:
+                c['vista_por_conductor'] = True
+                _guardar_json(CONTRAOFERTAS_FILE, contraofertas)
+                return jsonify({"ok": True}), 200
+        
+        return jsonify({"error": "No encontrada"}), 404
+        
+    except Exception as e:
+        print(f"❌ Error marcando rechazo visto: {e}")
         return jsonify({"error": str(e)}), 500
 
 

@@ -189,6 +189,17 @@ async function verificarMisOfertas() {
             return;
         }
 
+        // ❌ Notificar rechazos (pasajero eligió a otro conductor)
+        if (data.rechazadas && data.rechazadas.length > 0) {
+            for (const rechazo of data.rechazadas) {
+                const ruta = `${rechazo.origen_nombre || 'Origen'} → ${rechazo.destino_nombre || 'Destino'}`;
+                alert(`❌ Tu oferta fue rechazada\n\nRuta: ${ruta}\nTu oferta: S/. ${rechazo.precio_ofrecido?.toFixed(2) || '0.00'}\n\nEl pasajero eligió a otro conductor.`);
+                
+                // Marcar como vista para que no vuelva a aparecer
+                await marcarRechazoVisto(rechazo.id);
+            }
+        }
+
         // B) Renderizar la lista de espera visual (ofertas pendientes)
         const panel = document.getElementById('panelEspera');
         const lista = document.getElementById('listaEspera');
@@ -200,13 +211,20 @@ async function verificarMisOfertas() {
             let html = '';
 
             data.pendientes.forEach(oferta => {
+                const solicitud = oferta.solicitud || {};
+                const origenNombre = solicitud.origen?.nombre || 'Origen';
+                const destinoNombre = solicitud.destino?.nombre || 'Destino';
+                
                 html += `
-                    <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #ffeeba; font-size: 0.9rem;">
+                    <div style="background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #ffeeba; font-size: 0.9rem; margin-bottom: 0.5rem;">
                         <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
                             <strong>Oferta enviada</strong>
                             <span style="color:#ff9800; font-weight:700;">S/. ${oferta.precio_ofrecido.toFixed(2)}</span>
                         </div>
-                        <small style="color: #856404;"><i class="fas fa-user"></i> Esperando al pasajero...</small>
+                        <div style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">
+                            <i class="fas fa-route"></i> ${origenNombre} → ${destinoNombre}
+                        </div>
+                        <small style="color: #856404;"><i class="fas fa-hourglass-half"></i> Esperando al pasajero...</small>
                     </div>
                 `;
             });
@@ -218,6 +236,20 @@ async function verificarMisOfertas() {
 
     } catch (error) {
         console.error("Error verificando ofertas:", error);
+    }
+}
+
+// Marcar rechazo como visto
+async function marcarRechazoVisto(contraofertaId) {
+    try {
+        await fetch('/api/conductor/marcar-rechazo-visto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ contraoferta_id: contraofertaId })
+        });
+    } catch (e) {
+        console.error('Error marcando rechazo visto:', e);
     }
 }
 
