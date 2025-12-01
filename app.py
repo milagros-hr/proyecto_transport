@@ -382,6 +382,68 @@ def mis_rutas():
         return redirect(url_for('dashboard'))
     return "<h1>🚗 Mis Rutas</h1><p>Funcionalidad en desarrollo...</p><a href='/dashboard'>🔙 Volver al Dashboard</a>"
 
+
+@app.route("/historial")
+@requiere_login
+def historial_pasajero():
+    """Historial de viajes completados del pasajero (usa ListaEnlazada)"""
+    if session.get('user_type') != 'pasajero':
+        flash("❌ Solo los pasajeros pueden ver su historial", "error")
+        return redirect(url_for('dashboard'))
+    
+    from servicios.historial import (
+        obtener_historial_pasajero,
+        contar_viajes_completados,
+        calcular_total_gastado,
+        calcular_distancia_total
+    )
+    
+    pasajero_id = session['user_id']
+    historial = obtener_historial_pasajero(pasajero_id)
+    
+    stats = {
+        'total_viajes': contar_viajes_completados(historial),
+        'total_gastado': calcular_total_gastado(historial),
+        'distancia_total': calcular_distancia_total(historial)
+    }
+    
+    return render_template(
+        'historial.html',
+        viajes=historial.a_lista(),
+        stats=stats
+    )
+
+
+@app.route("/historial-conductor")
+@requiere_login
+def historial_conductor():
+    """Historial de viajes completados del conductor (usa ListaEnlazada)"""
+    if session.get('user_type') != 'conductor':
+        flash("❌ Solo los conductores pueden ver su historial", "error")
+        return redirect(url_for('dashboard'))
+    
+    from servicios.historial import (
+        obtener_historial_conductor,
+        contar_viajes_completados,
+        calcular_total_gastado,
+        calcular_distancia_total
+    )
+    
+    conductor_id = session['user_id']
+    historial = obtener_historial_conductor(conductor_id)
+    
+    stats = {
+        'total_viajes': contar_viajes_completados(historial),
+        'total_ganado': calcular_total_gastado(historial),
+        'distancia_total': calcular_distancia_total(historial)
+    }
+    
+    return render_template(
+        'historial-conductor.html',
+        viajes=historial.a_lista(),
+        stats=stats
+    )
+
 @app.route("/perfil", methods=["GET", "POST"])
 @requiere_login
 def perfil():

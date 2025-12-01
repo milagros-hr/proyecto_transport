@@ -280,8 +280,12 @@
                 </a>
                 
                 <a href="/mis-viajes" class="btn-action">
+                    <i class="fas fa-car-side"></i>
+                    Mi Viaje Activo
+                </a>
+                <a href="/historial" class="btn-action">
                     <i class="fas fa-history"></i>
-                    Mis Viajes
+                    Historial de Viajes
                 </a>
             {% else %}
                 <a href="/crear-ruta" class="btn-action">
@@ -295,12 +299,10 @@
                         <span class="notification-badge">{{ conteo_viajes_pendientes }}</span>
                     {% endif %}
                 </a>
-                
-
-
-
-
-            
+                <a href="/historial-conductor" class="btn-action">
+                    <i class="fas fa-history"></i>
+                    Historial de Viajes
+                </a>
             {% endif %}
             <a href="/perfil" class="btn-action">
                 <i class="fas fa-user-edit"></i>

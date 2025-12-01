@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Mi Historial de Viajes</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header h1 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        .header h1 i {
+            color: #ff9800;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(45deg, #333, #555);
+            color: #ffd93d;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid #ffd93d;
+        }
+
+        .btn-back:hover {
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+            transform: translateY(-2px);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #333 0%, #555 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card i {
+            font-size: 2rem;
+            color: #ffd93d;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffd93d;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: #ccc;
+            margin-top: 0.25rem;
+        }
+
+        /* Viajes List */
+        .viajes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .viaje-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #4CAF50;
+            transition: all 0.3s ease;
+        }
+
+        .viaje-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .viaje-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .viaje-id {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .viaje-fecha {
+            color: #666;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .viaje-ruta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .punto {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .punto i {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.9rem;
+        }
+
+        .punto.origen i {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .punto.destino i {
+            background: #f44336;
+            color: white;
+        }
+
+        .flecha {
+            color: #999;
+            font-size: 1.2rem;
+        }
+
+        .viaje-detalles {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            padding-top: 1rem;
+            border-top: 1px dashed #ddd;
+        }
+
+        .detalle-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .detalle-item i {
+            color: #ff9800;
+        }
+
+        .detalle-item.precio {
+            color: #4CAF50;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #ddd;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .empty-state p {
+            color: #888;
+        }
+
+        .empty-state .btn-buscar {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+
+        .empty-state .btn-buscar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .container { padding: 1.5rem; }
+            .header { flex-direction: column; text-align: center; }
+            .header h1 { font-size: 1.4rem; }
+            .viaje-ruta { flex-direction: column; align-items: flex-start; }
+            .flecha { transform: rotate(90deg); margin-left: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-history"></i> Mi Historial de Viajes</h1>
+            <a href="/dashboard" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <i class="fas fa-check-circle"></i>
+                <div class="stat-value">{{ stats.total_viajes }}</div>
+                <div class="stat-label">Viajes Completados</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-wallet"></i>
+                <div class="stat-value">S/ {{ "%.2f"|format(stats.total_gastado) }}</div>
+                <div class="stat-label">Total Gastado</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-road"></i>
+                <div class="stat-value">{{ "%.1f"|format(stats.distancia_total) }} km</div>
+                <div class="stat-label">Distancia Recorrida</div>
+            </div>
+        </div>
+
+        <!-- Lista de Viajes -->
+        <div class="viajes-list">
+            {% if viajes %}
+                {% for viaje in viajes %}
+                <div class="viaje-card">
+                    <div class="viaje-header">
+                        <span class="viaje-id">
+                            <i class="fas fa-check"></i> Viaje #{{ viaje.id }}
+                        </span>
+                        <span class="viaje-fecha">
+                            <i class="fas fa-calendar-alt"></i>
+                            {{ viaje.fecha[:16] if viaje.fecha else 'Sin fecha' }}
+                        </span>
+                    </div>
+                    
+                    <div class="viaje-ruta">
+                        <div class="punto origen">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>{{ viaje.origen }}</span>
+                        </div>
+                        <i class="fas fa-long-arrow-alt-right flecha"></i>
+                        <div class="punto destino">
+                            <i class="fas fa-flag-checkered"></i>
+                            <span>{{ viaje.destino }}</span>
+                        </div>
+                    </div>
+
+                    <div class="viaje-detalles">
+                        <div class="detalle-item">
+                            <i class="fas fa-route"></i>
+                            <span>{{ "%.1f"|format(viaje.distancia) }} km</span>
+                        </div>
+                        <div class="detalle-item">
+                            <i class="fas fa-clock"></i>
+                            <span>{{ viaje.duracion_minutos }} min</span>
+                        </div>
+                        <div class="detalle-item precio">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>S/ {{ "%.2f"|format(viaje.precio) }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-car-side"></i>
+                    <h3>Aún no tienes viajes completados</h3>
+                    <p>Cuando completes tu primer viaje, aparecerá aquí.</p>
+                    <a href="/buscar-viaje" class="btn-buscar">
+                        <i class="fas fa-search"></i> Buscar mi primer viaje
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
