@@ -10,7 +10,7 @@ class Cola:
         self.final = None
         self._len = 0
 
-    def __len__(self): return self._len0
+    def __len__(self): return self._len
     def esta_vacia(self): return self.frente is None
 
     def encolar(self, dato):

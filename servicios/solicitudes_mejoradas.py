@@ -1,18 +1,80 @@
 # servicios/solicitudes_mejoradas.py
 """
 Sistema de solicitudes con soporte para contraofertas
+Usa la estructura COLA para manejar solicitudes en orden FIFO
+(First In, First Out - Primero en llegar, primero en ser atendido)
 """
 import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from servicios.usuarios_repo import _guardar_json_atomic  # ← AGREGAR ESTA LÍNEA
+from servicios.usuarios_repo import _guardar_json_atomic
+from estructuras.cola import Cola  # ← ESTRUCTURA DE DATOS: COLA
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 SOLICITUDES_FILE = DATA_DIR / "solicitudes.json"
 CONTRAOFERTAS_FILE = DATA_DIR / "contraofertas.json"
-VIAJES_FILE = DATA_DIR / "viajes.json"  # Agregamos esto
+VIAJES_FILE = DATA_DIR / "viajes.json"
+
+# ============================================
+# COLA DE SOLICITUDES (Estructura de Datos)
+# ============================================
+# La cola garantiza que las solicitudes se procesen en orden FIFO:
+# - El pasajero que solicita primero, aparece primero para los conductores
+# - Esto es justo y eficiente para el sistema de transporte
+
+cola_solicitudes = Cola()  # Cola en memoria para solicitudes pendientes
+
+
+def _sincronizar_cola_desde_json():
+    """
+    Carga las solicitudes pendientes del JSON a la Cola (al iniciar el servidor).
+    Mantiene el orden por fecha_creacion (FIFO).
+    """
+    global cola_solicitudes
+    cola_solicitudes = Cola()  # Reiniciar cola
+    
+    solicitudes = _leer_json(SOLICITUDES_FILE)
+    pendientes = [s for s in solicitudes if s.get('estado') == 'pendiente']
+    
+    # Ordenar por fecha de creación (más antigua primero = FIFO)
+    pendientes.sort(key=lambda x: x.get('fecha_creacion', ''))
+    
+    for sol in pendientes:
+        cola_solicitudes.encolar(sol)
+    
+    print(f"📋 Cola sincronizada: {len(cola_solicitudes)} solicitudes pendientes")
+
+
+def _guardar_cola_a_json():
+    """
+    Persiste el estado actual de la cola al JSON.
+    """
+    solicitudes = _leer_json(SOLICITUDES_FILE)
+    
+    # Obtener IDs de solicitudes en la cola
+    ids_en_cola = set()
+    temp = []
+    while not cola_solicitudes.esta_vacia():
+        sol = cola_solicitudes.desencolar()
+        ids_en_cola.add(sol.get('id'))
+        temp.append(sol)
+    
+    # Re-encolar (mantener la cola intacta)
+    for sol in temp:
+        cola_solicitudes.encolar(sol)
+    
+    # Actualizar JSON con las solicitudes de la cola
+    for sol in solicitudes:
+        if sol.get('id') in ids_en_cola:
+            # Buscar la versión actualizada en la cola
+            for t in temp:
+                if t.get('id') == sol.get('id'):
+                    sol.update(t)
+                    break
+    
+    _guardar_json(SOLICITUDES_FILE, solicitudes)
 
 def _leer_json(path):
     try:
@@ -81,7 +143,10 @@ def calcular_precio(distancia_km):
 
 def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia, hora_viaje="ahora"):
     """
-    Crea una solicitud de viaje desde el lado del pasajero
+    Crea una solicitud de viaje desde el lado del pasajero.
+    
+    ESTRUCTURA DE DATOS: Usa COLA para encolar la solicitud (FIFO).
+    El pasajero que solicita primero será atendido primero.
     """
     solicitudes = _leer_json(SOLICITUDES_FILE)
     
@@ -98,19 +163,25 @@ def crear_solicitud_pasajero(pasajero_id, origen, destino, distancia, hora_viaje
     solicitud = {
         "id": nuevo_id,
         "pasajero_id": pasajero_id,
-        "origen": origen,  # {"nombre": "Miraflores", "lat": -12.12, "lng": -77.02}
+        "origen": origen,
         "destino": destino,
         "distancia": round(distancia, 2),
         "precio_estandar": round(precio_estimado, 2),
-        "estado": "pendiente",  # pendiente, aceptada, en_curso, completada, cancelada
+        "estado": "pendiente",
         "conductor_id": None,
         "precio_acordado": None,
         "fecha_creacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "fecha_partida_estimada": fecha_partida_estimada.strftime("%Y-%m-%d %H:%M:%S"),
         "hora_seleccionada": hora_viaje,
-        "fecha_actualizacion": None
+        "fecha_actualizacion": None,
+        "posicion_cola": len(cola_solicitudes) + 1  # Posición en la cola FIFO
     }
     
+    # ✅ ENCOLAR: Agregar a la cola de solicitudes (FIFO)
+    cola_solicitudes.encolar(solicitud)
+    print(f"📋 Solicitud #{nuevo_id} encolada. Posición en cola: {solicitud['posicion_cola']}")
+    
+    # Guardar también en JSON para persistencia
     solicitudes.append(solicitud)
     _guardar_json(SOLICITUDES_FILE, solicitudes)
     
@@ -180,26 +251,57 @@ def pasajero_rechaza_contraoferta(pasajero_id, contraoferta_id):
 
 def obtener_solicitudes_activas():
     """
-    Devuelve todas las solicitudes pendientes
+    Devuelve todas las solicitudes pendientes EN ORDEN FIFO (usando la Cola).
+    
+    ESTRUCTURA DE DATOS: Recorre la Cola sin modificarla para obtener
+    las solicitudes en el orden en que llegaron.
     """
-    solicitudes = _leer_json(SOLICITUDES_FILE)
-    return [s for s in solicitudes if s.get('estado') == 'pendiente']
+    # Si la cola está vacía, sincronizar desde JSON
+    if cola_solicitudes.esta_vacia():
+        _sincronizar_cola_desde_json()
+    
+    # Recorrer la cola sin modificarla (desencolar y re-encolar)
+    solicitudes_ordenadas = []
+    temp = []
+    
+    while not cola_solicitudes.esta_vacia():
+        sol = cola_solicitudes.desencolar()
+        # Solo incluir las que siguen pendientes
+        if sol.get('estado') == 'pendiente':
+            solicitudes_ordenadas.append(sol)
+        temp.append(sol)
+    
+    # Re-encolar todo para mantener la cola intacta
+    for sol in temp:
+        if sol.get('estado') == 'pendiente':
+            cola_solicitudes.encolar(sol)
+    
+    print(f"📋 Solicitudes activas (FIFO): {len(solicitudes_ordenadas)} en cola")
+    return solicitudes_ordenadas
+
 
 def obtener_solicitudes_cercanas(lat_conductor, lng_conductor, radio_km=10):
     """
-    Filtra solicitudes dentro de un radio de distancia del conductor
+    Filtra solicitudes dentro de un radio de distancia del conductor.
+    
+    IMPORTANTE: Mantiene el orden FIFO de la cola, pero filtra por cercanía.
+    Las solicitudes más antiguas aparecen primero dentro del radio.
     """
     from math import radians, sin, cos, sqrt, atan2
     
+    # Factor de corrección: distancia real por carretera ≈ 1.4x distancia aérea
+    FACTOR_CORRECCION = 1.4
+    
     def calcular_distancia(lat1, lon1, lat2, lon2):
-        # Fórmula de Haversine
-        R = 6371  # Radio de la Tierra en km
+        R = 6371
         dlat = radians(lat2 - lat1)
         dlon = radians(lon2 - lon1)
         a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
         c = 2 * atan2(sqrt(a), sqrt(1-a))
-        return R * c
+        distancia_aerea = R * c
+        return round(distancia_aerea * FACTOR_CORRECCION, 2)
     
+    # Obtener solicitudes en orden FIFO
     activas = obtener_solicitudes_activas()
     cercanas = []
     
@@ -214,8 +316,8 @@ def obtener_solicitudes_cercanas(lat_conductor, lng_conductor, radio_km=10):
                 sol['distancia_conductor'] = round(dist, 2)
                 cercanas.append(sol)
     
-    # Ordenar por cercanía
-    cercanas.sort(key=lambda x: x['distancia_conductor'])
+    # NO reordenar por distancia - mantener orden FIFO (primero en llegar)
+    # El conductor ve primero las solicitudes más antiguas dentro de su radio
     return cercanas
 
 def crear_contraoferta(conductor_id, solicitud_id, precio_ofrecido, mensaje=""):
@@ -249,9 +351,35 @@ def crear_contraoferta(conductor_id, solicitud_id, precio_ofrecido, mensaje=""):
     print(f"💰 Contraoferta #{nuevo_id} creada por conductor #{conductor_id}: S/. {precio_ofrecido:.2f}")
     return contraoferta
 
+def _desencolar_solicitud(solicitud_id):
+    """
+    ESTRUCTURA DE DATOS: Remueve una solicitud de la Cola cuando es aceptada.
+    Esto implementa el DESENCOLAR del FIFO - la solicitud sale de la cola.
+    """
+    global cola_solicitudes
+    temp = []
+    removida = None
+    
+    while not cola_solicitudes.esta_vacia():
+        sol = cola_solicitudes.desencolar()
+        if sol.get('id') == solicitud_id:
+            removida = sol
+            print(f"📤 Solicitud #{solicitud_id} DESENCOLADA (salió de la cola FIFO)")
+        else:
+            temp.append(sol)
+    
+    # Re-encolar las que no fueron removidas
+    for sol in temp:
+        cola_solicitudes.encolar(sol)
+    
+    return removida
+
+
 def aceptar_solicitud_directa(conductor_id, solicitud_id):
     """
-    El conductor acepta el precio estándar directamente
+    El conductor acepta el precio estándar directamente.
+    
+    ESTRUCTURA DE DATOS: Al aceptar, la solicitud se DESENCOLA (sale de la cola FIFO).
     """
     solicitudes = _leer_json(SOLICITUDES_FILE)
     
@@ -262,6 +390,9 @@ def aceptar_solicitud_directa(conductor_id, solicitud_id):
             sol['estado'] = 'aceptada'
             sol['fecha_actualizacion'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            # ✅ DESENCOLAR: Remover de la cola FIFO
+            _desencolar_solicitud(solicitud_id)
+            
             _guardar_json(SOLICITUDES_FILE, solicitudes)
             print(f"✅ Solicitud #{solicitud_id} aceptada por conductor #{conductor_id}")
             return sol
@@ -271,6 +402,8 @@ def aceptar_solicitud_directa(conductor_id, solicitud_id):
 def pasajero_acepta_contraoferta(pasajero_id, contraoferta_id):
     """
     El pasajero acepta una contraoferta específica y el viaje queda CONFIRMADO.
+    
+    ESTRUCTURA DE DATOS: Al confirmar, la solicitud se DESENCOLA (sale de la cola FIFO).
     """
     # 1) Cargar contraofertas y buscar la elegida
     contraofertas = _leer_json(CONTRAOFERTAS_FILE)
@@ -319,6 +452,9 @@ def pasajero_acepta_contraoferta(pasajero_id, contraoferta_id):
 
     contraoferta['estado'] = 'aceptada'
     contraoferta['fecha_actualizacion'] = now
+
+    # ✅ DESENCOLAR: Remover de la cola FIFO (ya no está pendiente)
+    _desencolar_solicitud(solicitud_id)
 
     # 5) Guardar atómico (más seguro)
     _guardar_json_atomic(CONTRAOFERTAS_FILE, contraofertas)

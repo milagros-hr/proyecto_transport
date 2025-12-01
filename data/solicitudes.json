@@ -1,5 +1,4 @@
 [
-  
   {
     "id": 3,
     "pasajero_id": 3,
@@ -57,7 +56,6 @@
     "cancelacion_vista_por_conductor": true,
     "fecha_vista_conductor": "2025-11-30 21:36:42"
   },
-
   {
     "id": 6,
     "pasajero_id": 2,
@@ -84,5 +82,81 @@
     "fecha_inicio": "2025-12-01 13:16:20",
     "fecha_fin": "2025-12-01 13:16:50",
     "duracion_minutos": 0.5
+  },
+  {
+    "id": 7,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -11.993,
+      "lng": -77.053
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "completado",
+    "conductor_id": 1,
+    "precio_acordado": 18.4,
+    "fecha_creacion": "2025-12-01 14:55:29",
+    "fecha_partida_estimada": "2025-12-01 14:55:29",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-12-01 14:56:56",
+    "posicion_cola": 1,
+    "fecha_confirmacion_pasajero": "2025-12-01 14:57:10",
+    "fecha_inicio": "2025-12-01 14:57:29",
+    "fecha_fin": "2025-12-01 14:57:32",
+    "duracion_minutos": 0.1
+  },
+  {
+    "id": 8,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Callao",
+      "lat": -12.0566,
+      "lng": -77.1181
+    },
+    "distancia": 8.27,
+    "precio_estandar": 23.5,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-12-01 14:56:03",
+    "fecha_partida_estimada": "2025-12-01 14:56:03",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": null,
+    "posicion_cola": 2
+  },
+  {
+    "id": 9,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Carabayllo",
+      "lat": -11.906322346652187,
+      "lng": -77.03269958496095
+    },
+    "destino": {
+      "nombre": "Surco",
+      "lat": -12.205140133465818,
+      "lng": -76.93244934082033
+    },
+    "distancia": 30.0,
+    "precio_estandar": 73.5,
+    "estado": "pendiente",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-12-01 15:04:06",
+    "fecha_partida_estimada": "2025-12-01 15:04:06",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": null,
+    "posicion_cola": 2
   }
 ]

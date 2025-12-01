@@ -1237,9 +1237,17 @@ def api_rechazar_oferta():
 # HELPER: CALCULAR DISTANCIA ENTRE COORDENADAS
 # ============================================
 
+# Factor de corrección para convertir distancia aérea a distancia real por carretera
+# En ciudades como Lima, las calles no son rectas, hay curvas, desvíos, etc.
+# Estudios indican que la distancia real es ~1.3 a 1.5 veces la distancia aérea
+FACTOR_CORRECCION_CARRETERA = 1.4  # 40% más que línea recta
+
 def calcular_distancia_haversine(lat1, lng1, lat2, lng2):
     """
-    Calcula la distancia en km entre dos coordenadas usando Haversine
+    Calcula la distancia en km entre dos coordenadas.
+    
+    Usa Haversine para distancia aérea y aplica un factor de corrección
+    para estimar la distancia REAL por carretera (más precisa para Lima).
     """
     from math import radians, sin, cos, sqrt, atan2
     
@@ -1251,7 +1259,12 @@ def calcular_distancia_haversine(lat1, lng1, lat2, lng2):
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
     c = 2 * atan2(sqrt(a), sqrt(1-a))
     
-    return R * c
+    distancia_aerea = R * c
+    
+    # Aplicar factor de corrección para distancia real por carretera
+    distancia_real = distancia_aerea * FACTOR_CORRECCION_CARRETERA
+    
+    return round(distancia_real, 2)
 
 
 # ============================================
