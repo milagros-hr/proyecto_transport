@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "nombre": "MILAGROS ISABEL HUAYNATE ROMERO",
+    "correo": "milagrohuro@gmail.com",
+    "telefono": "+51 904 457 665",
+    "tipo": "conductor",
+    "fecha_registro": "2025-11-04 08:33:45",
+    "password_hash": "pbkdf2:sha256:1000000$ztyg6IpCosYvS5cF$eea23e78da4e0d689ca091f3ebba1a4c38892ca95428324343186ef32ae63860",
+    "licencia": "UIIUIU",
+    "placa": "BCF-842",
+    "modelo": "Toyota Yaris 2021",
+    "color": "Reer",
+    "capacidad": 4
+  },
+  {
+    "id": 2,
+    "nombre": "ENZO FABRIZIO LOPEZ PADILLA",
+    "correo": "zopezlla@gmail.com",
+    "telefono": "enzo.lopezp@unmsm.edu.pe",
+    "tipo": "conductor",
+    "fecha_registro": "2025-11-07 23:07:32",
+    "password_hash": "pbkdf2:sha256:1000000$98XurZIcPF3h68gx$f3b2ed04b479c8b0632ce0d9784d8b3577191c88068763adb9c665ee8c72f1bb",
+    "licencia": "124235",
+    "placa": "OLA-123",
+    "modelo": "Tesla X",
+    "color": "Blanco",
+    "capacidad": 4
+  },
+  {
+    "id": 3,
+    "nombre": "Felix Albornoz",
+    "correo": "fisichow@gmail.com",
+    "telefono": "+51 987 654 125",
+    "tipo": "conductor",
+    "fecha_registro": "2025-11-30 21:23:34",
+    "password_hash": "pbkdf2:sha256:1000000$fSOBH5TS7BVxMgt7$69fc8e266d54b3ead037bfd0c96fc13e5a582205fb8ec1dbeae3f6f4b64b688b",
+    "licencia": "54631218",
+    "placa": "ABC-123",
+    "modelo": "Picanto",
+    "color": "Azul",
+    "capacidad": 4
+  }
+]

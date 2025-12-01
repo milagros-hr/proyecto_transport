@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "nombre": "Enzo Padilla",
+    "correo": "enz0l0p3z@hotmail.com",
+    "telefono": "+51 123 132 131",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-11-07 22:45:40",
+    "password_hash": "pbkdf2:sha256:1000000$ozyGpQxqTdi0Q34t$341ffa40288be8aa39ee094aec39404c7e9568ef7970f9dbe0a6b6fe6a742db9"
+  },
+  {
+    "id": 2,
+    "nombre": "MILAGROS ISABEL HUAYNATE ROMERO",
+    "correo": "milagrohuro2@gmail.com",
+    "telefono": "+51 904 457 665",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-11-13 02:39:03",
+    "password_hash": "pbkdf2:sha256:1000000$vsxs617j7pYe20th$b81b9ce22a2956ff99db3ec420fca7f00bc9eebda7f8b6ac06aabadaeff59fbd"
+  },
+  {
+    "id": 3,
+    "nombre": "Moroni Anselmo",
+    "correo": "fisiamen@gmail.com",
+    "telefono": "+51 123 456 789",
+    "tipo": "pasajero",
+    "fecha_registro": "2025-11-30 21:23:02",
+    "password_hash": "pbkdf2:sha256:1000000$qr8PldTcM7kmPwu0$6b7270ee40cbf77d10feb6d8a38576f4932ccd017ad9a03094bc9a84b309529e"
+  }
+]

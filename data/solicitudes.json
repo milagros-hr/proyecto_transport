@@ -1,0 +1,146 @@
+[
+  {
+    "id": 1,
+    "pasajero_id": 3,
+    "origen": {
+      "nombre": "Los Olivos",
+      "lat": -11.9474994493949,
+      "lng": -77.07626266339425
+    },
+    "destino": {
+      "nombre": "San Martín de Porres",
+      "lat": -12.006776756688973,
+      "lng": -77.08146311127403
+    },
+    "distancia": 3.0,
+    "precio_estandar": 11.4,
+    "estado": "cancelado_pasajero",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 21:24:34",
+    "fecha_partida_estimada": "2025-11-30 21:24:34",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 21:26:37",
+    "fecha_confirmacion_pasajero": "2025-11-30 21:25:08",
+    "motivo_cancelacion": "Cancelado por el pasajero",
+    "fecha_cancelacion": "2025-11-30 21:26:37",
+    "conductor_id_cancelado": 3,
+    "cancelacion_vista_por_conductor": true,
+    "fecha_vista_conductor": "2025-11-30 21:26:37"
+  },
+  {
+    "id": 2,
+    "pasajero_id": 3,
+    "origen": {
+      "nombre": "Los Olivos",
+      "lat": -11.950382452032304,
+      "lng": -77.08536099143647
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -11.976803880256952,
+      "lng": -77.05947485846849
+    },
+    "distancia": 6.0,
+    "precio_estandar": 18.3,
+    "estado": "cancelado_pasajero",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 21:32:31",
+    "fecha_partida_estimada": "2025-11-30 21:32:31",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 21:33:23",
+    "fecha_confirmacion_pasajero": "2025-11-30 21:33:03",
+    "motivo_cancelacion": "Cancelado por el pasajero",
+    "fecha_cancelacion": "2025-11-30 21:33:23",
+    "conductor_id_cancelado": 3,
+    "cancelacion_vista_por_conductor": true,
+    "fecha_vista_conductor": "2025-11-30 21:33:24"
+  },
+  {
+    "id": 3,
+    "pasajero_id": 3,
+    "origen": {
+      "nombre": "Comas",
+      "lat": -11.93775859201739,
+      "lng": -77.07313491140555
+    },
+    "destino": {
+      "nombre": "San Martín de Porres",
+      "lat": -11.996184482098101,
+      "lng": -77.0632628446018
+    },
+    "distancia": 4.0,
+    "precio_estandar": 13.7,
+    "estado": "cancelado_conductor",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 21:34:15",
+    "fecha_partida_estimada": "2025-11-30 21:34:15",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 21:34:26",
+    "fecha_confirmacion_pasajero": "2025-11-30 21:34:34",
+    "fecha_cancelacion": "2025-11-30 21:34:52",
+    "motivo_cancelacion": "",
+    "conductor_id_cancelado": 3
+  },
+  {
+    "id": 4,
+    "pasajero_id": 3,
+    "origen": {
+      "nombre": "Los Olivos",
+      "lat": -11.948325166860588,
+      "lng": -77.07862946774232
+    },
+    "destino": {
+      "nombre": "Comas",
+      "lat": -11.938850257172733,
+      "lng": -77.04952802818944
+    },
+    "distancia": 7.0,
+    "precio_estandar": 20.6,
+    "estado": "cancelado_pasajero",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 21:35:40",
+    "fecha_partida_estimada": "2025-11-30 21:35:40",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 21:36:41",
+    "fecha_confirmacion": "2025-11-30 21:36:18",
+    "fecha_inicio": "2025-11-30 21:36:27",
+    "motivo_cancelacion": "Cancelado por el pasajero",
+    "fecha_cancelacion": "2025-11-30 21:36:41",
+    "conductor_id_cancelado": 3,
+    "cancelacion_vista_por_conductor": true,
+    "fecha_vista_conductor": "2025-11-30 21:36:42"
+  },
+  {
+    "id": 5,
+    "pasajero_id": 2,
+    "origen": {
+      "nombre": "Centro de Lima",
+      "lat": -12.0225792,
+      "lng": -76.9982464
+    },
+    "destino": {
+      "nombre": "Independencia",
+      "lat": -11.984416354903999,
+      "lng": -77.00634956359863
+    },
+    "distancia": 6.04,
+    "precio_estandar": 18.4,
+    "estado": "cancelado_pasajero",
+    "conductor_id": null,
+    "precio_acordado": null,
+    "fecha_creacion": "2025-11-30 22:05:28",
+    "fecha_partida_estimada": "2025-11-30 22:05:28",
+    "hora_seleccionada": "ahora",
+    "fecha_actualizacion": "2025-11-30 22:06:35",
+    "fecha_confirmacion_pasajero": "2025-11-30 22:06:29",
+    "motivo_cancelacion": "Cancelado por el pasajero",
+    "fecha_cancelacion": "2025-11-30 22:06:35",
+    "conductor_id_cancelado": 1,
+    "cancelacion_vista_por_conductor": true,
+    "fecha_vista_conductor": "2025-11-30 22:06:36"
+  }
+]

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TransPort - Mi Viaje</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
+      padding: 1rem;
+      color: #333;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    @media (min-width: 768px) {
+      body {
+        padding: 2rem;
+      }
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: rgba(255,255,255,0.95);
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        border-radius: 20px;
+        padding: 3rem;
+      }
+    }
+
+    .header { 
+      text-align: center; 
+      margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .header {
+        margin-bottom: 2.5rem;
+      }
+    }
+
+    .header h1 { 
+      font-size: 1.6rem; 
+      margin-bottom: 0.5rem;
+      word-wrap: break-word;
+    }
+
+    @media (min-width: 768px) {
+      .header h1 {
+        font-size: 2.2rem;
+      }
+    }
+
+    .header p { 
+      color: #666; 
+      font-size: 0.9rem;
+    }
+
+    .viaje-card {
+      background: white;
+      border-radius: 12px;
+      padding: 0;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      border: 1px solid #eee;
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    @media (min-width: 768px) {
+      .viaje-card {
+        border-radius: 15px;
+        margin-bottom: 2rem;
+      }
+      .viaje-card:hover { 
+        transform: translateY(-3px); 
+      }
+    }
+
+    .viaje-header {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+
+    @media (min-width: 768px) {
+      .viaje-header {
+        padding: 1.5rem;
+      }
+    }
+
+    .viaje-ruta {
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      line-height: 1.3;
+    }
+
+    @media (min-width: 768px) {
+      .viaje-ruta {
+        font-size: 1.1rem;
+      }
+    }
+
+    .viaje-fecha {
+      font-size: 0.85rem;
+      color: #666;
+      background: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      white-space: nowrap;
+    }
+
+    @media (min-width: 768px) {
+      .viaje-fecha {
+        font-size: 0.9rem;
+      }
+    }
+
+    .viaje-body {
+      padding: 1.25rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .viaje-body {
+        padding: 1.5rem;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+    }
+
+    .section-title {
+      grid-column: 1 / -1;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .section-title {
+        font-size: 0.9rem;
+        grid-column: auto;
+      }
+    }
+
+    .detalle-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.8rem;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    @media (min-width: 768px) {
+      .detalle-item {
+        gap: 1rem;
+        font-size: 1rem;
+      }
+    }
+
+    .detalle-item i {
+      color: #ff9800;
+      width: 25px;
+      font-size: 1rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    @media (min-width: 768px) {
+      .detalle-item i {
+        font-size: 1.1rem;
+      }
+    }
+
+    .detalle-item strong { 
+      color: #333; 
+    }
+
+    .detalle-item span {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .badge-estado {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .35rem .7rem;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: .8rem;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: #fff;
+      text-transform: capitalize;
+    }
+
+    @media (min-width: 768px) {
+      .badge-estado {
+        font-size: .85rem;
+      }
+    }
+
+    .estado-confirmado { color: #2e7d32; }
+    .estado-en_curso { color: #1565c0; }
+    .estado-aceptada { color: #ef6c00; }
+    .estado-pendiente { color: #6d4c41; }
+
+    .actions {
+      padding: 1rem;
+      background: #fffcf5;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: .5rem;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    @media (min-width: 768px) {
+      .actions {
+        padding: 1rem 1.5rem;
+        gap: .75rem;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .actions {
+        flex-direction: column;
+      }
+    }
+
+    .btn {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 0.85rem;
+      transition: all 0.25s ease;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+      text-align: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    @media (min-width: 768px) {
+      .btn {
+        padding: 0.8rem 1.2rem;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        flex: 0 1 auto;
+        min-width: auto;
+      }
+    }
+
+    .btn-green {
+      background: linear-gradient(45deg, #4caf50, #45a049);
+      color: white;
+    }
+    .btn-green:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 20px rgba(76,175,80,.35); 
+    }
+
+    .btn-blue {
+      background: linear-gradient(45deg, #1e88e5, #1565c0);
+      color: white;
+    }
+    .btn-blue:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 20px rgba(21,101,192,.35); 
+    }
+
+    .btn-danger {
+      background: linear-gradient(45deg, #e53935, #c62828);
+      color: white;
+    }
+    .btn-danger:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 20px rgba(198,40,40,.35); 
+    }
+    .btn-danger:disabled { 
+      opacity: .65; 
+      cursor: not-allowed; 
+      transform: none; 
+      box-shadow: none; 
+    }
+
+    .btn-gray {
+      background: #eee;
+      color: #333;
+    }
+    .btn-gray:hover { 
+      background: #e0e0e0; 
+      transform: translateY(-1px); 
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #666;
+      background: rgba(255,255,255,.8);
+      border-radius: 12px;
+      border: 1px dashed rgba(0,0,0,.15);
+    }
+
+    @media (min-width: 768px) {
+      .empty-state {
+        padding: 3rem;
+        border-radius: 16px;
+      }
+    }
+
+    .empty-state i { 
+      font-size: 3rem; 
+      color: #e0e0e0; 
+      margin-bottom: 1rem; 
+    }
+
+    @media (min-width: 768px) {
+      .empty-state i {
+        font-size: 4rem;
+      }
+    }
+
+    .empty-state p {
+      font-size: 0.95rem;
+      margin: 0.5rem 0;
+    }
+
+    @media (min-width: 768px) {
+      .empty-state p {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-car-side"></i> Mi Viaje</h1>
+      <p>Datos del conductor</p>
+    </div>
+
+    {% if viajes and viajes|length > 0 %}
+      {% set viaje = viajes[0] %}
+
+      {# ===== Fecha robusta (elige la primera disponible) ===== #}
+      {% set fecha_raw = viaje.fecha or viaje.fecha_confirmacion or viaje.fecha_actualizacion or viaje.fecha_creacion %}
+      {% set fecha_dia = (fecha_raw.split(' ')[0] if fecha_raw else '--') %}
+      {% set fecha_hora = (fecha_raw.split(' ')[1] if (fecha_raw and (fecha_raw.split(' ')|length > 1)) else '--') %}
+
+      {# ===== Origen/Destino robusto (dict o string) ===== #}
+      {% set origen_nombre = (viaje.origen.get('nombre') if viaje.origen is mapping else viaje.origen) %}
+      {% set destino_nombre = (viaje.destino.get('nombre') if viaje.destino is mapping else viaje.destino) %}
+
+      {# ===== Teléfono limpio SIN depender de conductor_telefono_clean ===== #}
+      {% set tel_raw = (viaje.conductor_telefono or '') %}
+      {% set tel_digits = tel_raw
+          |replace(' ', '')
+          |replace('-', '')
+          |replace('(', '')
+          |replace(')', '')
+          |replace('+', '')
+      %}
+      {% set tel_wa = (tel_digits if tel_digits.startswith('51') else ('51' ~ tel_digits)) %}
+      {% set tel_ok = (tel_digits|length >= 8) %}
+
+      <div class="viaje-card">
+        
+        <div class="viaje-body">
+          <div>
+            <div class="section-title">Conductor</div>
+
+            <div class="detalle-item">
+              <i class="fas fa-user-circle"></i>
+              <span><strong>{{ viaje.conductor_nombre or 'Aún sin conductor' }}</strong></span>
+            </div>
+
+            <div class="detalle-item">
+              <i class="fas fa-car"></i>
+              <span>
+                {{ viaje.conductor_modelo or 'Auto' }}
+                {% if viaje.conductor_color %} ({{ viaje.conductor_color }}){% endif %}
+              </span>
+            </div>
+
+            <div class="detalle-item">
+              <i class="fas fa-id-card"></i>
+              <span>Placa: <strong>{{ viaje.conductor_placa or '---' }}</strong></span>
+            </div>
+
+            <div class="detalle-item">
+              <i class="fas fa-phone"></i>
+              <span>{{ viaje.conductor_telefono or '---' }}</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-title">Detalles del viaje</div>
+
+            <div class="detalle-item">
+              <i class="fas fa-road"></i>
+              <span>Distancia:
+                <strong>
+                  {% if viaje.distancia is not none %}
+                    {{ "%.1f"|format(viaje.distancia) }} km
+                  {% else %}
+                    --
+                  {% endif %}
+                </strong>
+              </span>
+            </div>
+
+            <div class="detalle-item">
+              <i class="fas fa-coins"></i>
+              <span>Precio:
+                <strong>
+                  S/. {{ "%.2f"|format(viaje.precio_acordado if viaje.precio_acordado else viaje.precio_estandar) }}
+                </strong>
+              </span>
+            </div>
+
+            <div class="detalle-item">
+              <i class="fas fa-clock"></i>
+              <span>Hora: {{ fecha_hora }}</span>
+            </div>
+
+            <div class="detalle-item">
+              <i class="fas fa-info-circle"></i>
+              <span>
+                Estado:
+                {% set est = (viaje.estado or '').lower() %}
+                <span class="badge-estado
+                  {% if est == 'confirmado' %}estado-confirmado{% elif est == 'en_curso' %}estado-en_curso{% elif est == 'aceptada' %}estado-aceptada{% else %}estado-pendiente{% endif %}">
+                  <i class="fas fa-circle"></i>
+                  {{ (viaje.estado or 'pendiente').replace('_',' ') }}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          {# Mostrar cancelar SOLO en estados que tu backend permite #}
+          {% set est = (viaje.estado or '').lower() %}
+          {% set puede_cancelar = est in ['pendiente', 'aceptada', 'confirmado'] %}
+          {% if puede_cancelar %}
+            <button id="btnCancelar" class="btn btn-danger" onclick="cancelarViaje({{ viaje.id }})">
+              <i class="fas fa-ban"></i> Cancelar viaje
+            </button>
+          {% endif %}
+
+          {% if tel_ok %}
+            
+            
+          {% endif %}
+
+          <a href="/buscar-viaje" class="btn btn-gray">
+            <i class="fas fa-magnifying-glass"></i> Ir a Buscar Viaje
+          </a>
+
+          <a href="{{ url_for('dashboard') }}" class="btn btn-gray">
+            <i class="fas fa-arrow-left"></i> Dashboard
+          </a>
+        </div>
+      </div>
+
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-route"></i>
+        <p>No tienes un viaje activo en este momento.</p>
+        <a href="/buscar-viaje" class="btn btn-green" style="margin-top: 1rem;">
+          <i class="fas fa-magnifying-glass"></i> Buscar un viaje
+        </a>
+        <div style="margin-top: 1rem;">
+          <a href="{{ url_for('dashboard') }}" class="btn btn-gray">
+            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+<script>
+    let intervaloVerificacion = null;
+    let viajeIdActual = null;
+
+    // ✅ Iniciar verificación automática al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+            {% if viajes and viajes|length > 0 %}
+            viajeIdActual = {{ viajes[0].id }};
+            iniciarVerificacion();
+            {% endif %}
+    });
+
+    // ✅ Verificar cada 5 segundos si el viaje sigue activo
+    function iniciarVerificacion() {
+        if (intervaloVerificacion) return; // Ya está corriendo
+
+        intervaloVerificacion = setInterval(async () => {
+        try {
+            const res = await fetch('/api/pasajero/mis-solicitudes', {
+            credentials: 'same-origin'
+            });
+
+            if (!res.ok) throw new Error('Error al verificar');
+
+            const solicitudes = await res.json();
+
+            // ✅ Buscar si mi viaje sigue activo
+            const miViaje = solicitudes.find(s => 
+            s.id === viajeIdActual && 
+            ['pendiente', 'aceptada', 'confirmado', 'en_curso'].includes(s.estado)
+            );
+
+            // ✅ Si fue cancelado, redirigir a la ventana principal
+            if (!miViaje) {
+            console.log('⚠️ Viaje cancelado o finalizado');
+            clearInterval(intervaloVerificacion);
+            alert('🚫 El conductor canceló el viaje.');
+            
+            // FORZAR REDIRECCIÓN A LA VENTANA PRINCIPAL
+            window.top.location.href = '/buscar-viaje'; 
+            }
+
+        } catch (error) {
+            console.error('Error verificando viaje:', error);
+        }
+        }, 5000); // ✅ Cada 5 segundos
+    }
+
+    // ✅ Limpiar intervalo al salir
+    window.addEventListener('beforeunload', () => {
+        if (intervaloVerificacion) {
+        clearInterval(intervaloVerificacion);
+        }
+    });
+
+    // ✅ Función de cancelar viaje (ya la tienes)
+    async function cancelarViaje(viajeId) {
+        if (!confirm("¿Cancelar el viaje? Volverás a Buscar Viaje.")) return;
+
+        const btn = document.getElementById("btnCancelar");
+        if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+        }
+
+        try {
+        const res = await fetch("/api/pasajero/cancelar-viaje", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ solicitud_id: viajeId, motivo: "Cancelado por el pasajero" })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.ok) {
+            // Detener verificación
+            if (intervaloVerificacion) {
+            clearInterval(intervaloVerificacion);
+            }
+            
+            alert("✅ Viaje cancelado exitosamente.");
+            
+            // FORZAR REDIRECCIÓN A LA VENTANA PRINCIPAL
+            window.top.location.href = "/buscar-viaje"; 
+            return;
+        }
+
+        alert("❌ No se pudo cancelar: " + (data.error || ("HTTP " + res.status)));
+        } catch (e) {
+        console.error(e);
+        alert("❌ Error al cancelar el viaje");
+        } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-ban"></i> Cancelar viaje';
+        }
+        }
+    }
+</script>
+
+</body>
+</html>

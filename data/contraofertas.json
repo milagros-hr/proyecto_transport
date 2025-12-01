@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "solicitud_id": 4,
+    "conductor_id": 3,
+    "precio_ofrecido": 22.0,
+    "mensaje": "Hay trafico",
+    "estado": "aceptada",
+    "fecha_creacion": "2025-11-30 21:36:09",
+    "fecha_actualizacion": "2025-11-30 21:36:18"
+  },
+  {
+    "id": 2,
+    "solicitud_id": 5,
+    "conductor_id": 1,
+    "precio_ofrecido": 45.0,
+    "mensaje": "",
+    "estado": "rechazada",
+    "fecha_creacion": "2025-11-30 22:05:40",
+    "fecha_actualizacion": "2025-11-30 22:06:22"
+  }
+]

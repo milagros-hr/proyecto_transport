@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransPort - Servicio de Taxis</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #ffd93d 0%, #ff9800 100%);
+            min-height: 100vh;
+        }
+
+        /* Header moderno */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1rem 0;
+            z-index: 1000;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo i {
+            color: #ffd93d;
+            -webkit-text-fill-color: #ffd93d;
+        }
+
+        nav {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .btn-login {
+            background: transparent;
+            color: #333;
+            border: 2px solid #333;
+        }
+
+        .btn-login:hover {
+            background: #333;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-register {
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(255, 217, 61, 0.4);
+        }
+
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 217, 61, 0.6);
+        }
+
+        /* Hero section mejorada */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 6rem 2rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 217, 61, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 152, 0, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(255, 193, 7, 0.2) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .content-left {
+            animation: slideInLeft 1s ease-out;
+        }
+
+        .content-left h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .content-left p {
+            font-size: 1.3rem;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-principal {
+            background: linear-gradient(45deg, #333, #555);
+            color: #ffd93d;
+            padding: 1.2rem 2.5rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            border: 2px solid #ffd93d;
+        }
+
+        .btn-principal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(45deg, #ffd93d, #ff9800);
+            color: #333;
+        }
+
+        .content-right {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: slideInRight 1s ease-out;
+        }
+
+        .taxi-visual {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+
+        .taxi-icon {
+            font-size: 12rem;
+            color: #333;
+            animation: float 3s ease-in-out infinite;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Características destacadas */
+        .features {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 3rem;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 1.5rem 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            color: #333;
+        }
+
+        .feature i {
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .feature span {
+            font-weight: 700;
+            color: #333;
+        }
+
+        /* Animaciones */
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .hero-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 2rem;
+            }
+
+            .content-left h1 {
+                font-size: 2.5rem;
+            }
+
+            .content-left p {
+                font-size: 1.1rem;
+            }
+
+            .taxi-visual {
+                width: 300px;
+                height: 300px;
+            }
+
+            .taxi-icon {
+                font-size: 8rem;
+            }
+
+            .features {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem 2rem;
+                position: static;
+                transform: none;
+                margin-top: 2rem;
+            }
+
+            nav {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-taxi"></i>
+                TransPort
+            </div>
+            <nav>
+                <a href="/login" class="btn btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+                </a>
+                <a href="/registro" class="btn btn-register">
+                    <i class="fas fa-user-plus"></i> Registrarse
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="hero">
+        <div class="hero-content">
+            <div class="content-left">
+                <h1>Tu taxi de confianza</h1>
+                <p>Nos conectamos con transporte seguro y confiable. Viaja entre distritos y por lima sin complicaciones.</p>
+                <a href="/registro" class="btn btn-register">
+                    <i class="fas fa-rocket"></i>
+                    ¡Comienza ahora!                  
+                </a>
+            </div>
+            <div class="content-right">
+                <div class="taxi-visual">
+                    <i class="fas fa-taxi taxi-icon"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <i class="fas fa-shield-alt"></i>
+                <span>100% Seguro</span>
+            </div>
+            <div class="feature">
+                <i class="fas fa-clock"></i>
+                <span>Disponible 24/7</span>
+            </div>
+            <div class="feature">
+                <i class="fas fa-dollar-sign"></i>
+                <span>Precios Justos</span>
+            </div>
+            
+        </div>
+    </main>
+
+    <script>
+        // Efecto parallax suave al hacer scroll
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const taxiIcon = document.querySelector('.taxi-icon');
+            if (taxiIcon) {
+                taxiIcon.style.transform = `translateY(${scrolled * 0.1}px) rotate(${scrolled * 0.05}deg)`;
+            }
+        });
+
+        // Animación de entrada para las features
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        });
+
+        document.querySelectorAll('.feature').forEach(feature => {
+            feature.style.opacity = '0';
+            feature.style.transform = 'translateY(20px)';
+            feature.style.transition = 'all 0.6s ease';
+            observer.observe(feature);
+        });
+    </script>
+</body>
+</html>
